@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { streamChat } from '../api.js'
 import { track } from '../analytics.js'
+import ContactChainCard from './ContactChainCard.jsx'
 import PeopleTable from './PeopleTable.jsx'
 import ToolTrace from './ToolTrace.jsx'
 
@@ -375,12 +376,19 @@ export default function ChatView({ activeUser, activeUserId, onSelectPerson }) {
                   )}
 
                   {msg.people?.length > 0 && (
-                    <PeopleTable
-                      people={msg.people}
-                      onSelectPerson={onSelectPerson}
-                      onDraftIntro={handleDraftIntro}
-                      disabled={streaming}
-                    />
+                    <>
+                      <ContactChainCard
+                        people={msg.people}
+                        activeUser={activeUser}
+                        onSelectPerson={onSelectPerson}
+                      />
+                      <PeopleTable
+                        people={msg.people}
+                        onSelectPerson={onSelectPerson}
+                        onDraftIntro={handleDraftIntro}
+                        disabled={streaming}
+                      />
+                    </>
                   )}
 
                   {msg.outro_text && (

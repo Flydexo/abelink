@@ -1005,6 +1005,139 @@ blockquote { margin: 0 0 1rem; padding: 1.15rem 1.25rem; background: var(--tint)
   gap: .4rem;
 }
 
+/* Contact Chain Suggestion Card */
+.contact-chain-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: .95rem 1.1rem;
+  display: grid;
+  gap: .65rem;
+  box-shadow: 0 6px 20px rgba(14, 40, 30, .04);
+}
+
+.contact-chain-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  flex-wrap: wrap;
+}
+
+.contact-chain-eyebrow {
+  font-size: .74rem;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--muted, #5c6b63);
+}
+
+.contact-chain-channels {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  flex-wrap: wrap;
+}
+
+.contact-chain-pill {
+  font-size: .75rem;
+  font-weight: 600;
+  padding: .2rem .55rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.contact-chain-pill.is-accent {
+  border-color: rgba(20, 90, 62, .22);
+  background: rgba(20, 90, 62, .08);
+  color: var(--accent, #145a3e);
+}
+
+.contact-chain-hint {
+  margin: 0;
+  font-size: .88rem;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.contact-chain-flow {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex-wrap: wrap;
+  padding-top: .15rem;
+}
+
+.contact-chain-node {
+  display: inline-flex;
+  align-items: center;
+  gap: .55rem;
+  padding: .4rem .65rem .4rem .45rem;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  text-align: left;
+  min-width: 0;
+  max-width: 210px;
+}
+
+.contact-chain-node.is-interactive {
+  cursor: pointer;
+  transition: border-color .15s ease, transform .15s ease;
+}
+
+.contact-chain-node.is-interactive:hover {
+  border-color: var(--accent, #145a3e);
+  transform: translateY(-1px);
+}
+
+.contact-chain-node.is-target {
+  border-color: rgba(20, 90, 62, .28);
+  background: rgba(20, 90, 62, .04);
+}
+
+.contact-chain-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.contact-chain-meta {
+  display: grid;
+  min-width: 0;
+}
+
+.contact-chain-name {
+  font-size: .83rem;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.contact-chain-role {
+  font-size: .73rem;
+  color: var(--muted, #5c6b63);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.contact-chain-arrow {
+  color: var(--muted, #5c6b63);
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
 /* Sticky Bottom Chat Composer */
 .chat-composer-dock {
   position: sticky;

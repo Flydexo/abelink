@@ -131,7 +131,7 @@ export default function LiveApp({ onNavigateHome, onNavigate, pathname = '/app' 
               className={`app-tab${tab === 'linkcs' ? ' active' : ''}`}
               onClick={() => selectTab('linkcs')}
             >
-              Import LinkCS
+              Import de données
             </button>
             <button
               type="button"

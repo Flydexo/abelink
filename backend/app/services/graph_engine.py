@@ -6,12 +6,13 @@ import math
 import re
 import threading
 import unicodedata
+from contextlib import aclosing
 from itertools import islice
 from typing import Iterable, Optional
 
 import networkx as nx
 
-from app.db.repository import EdgeRecord, ProfileRecord
+from app.db.repository import AbstractAlumniRepository, EdgeRecord, PostgresAlumniRepository, ProfileRecord
 from app.schemas.search import ConnectionPath, GraphEdge, GraphNode, HopDetail
 
 COMPANY_ALIASES: dict[str, str] = {
@@ -169,6 +170,20 @@ class GraphEngine:
             self._add_node_to_graph(new_graph, profile)
         for edge in edges:
             self._add_edge_to_graph(new_graph, edge)
+        with self._lock:
+            self._graph = new_graph
+
+    async def reload_from_repository(self, repository: AbstractAlumniRepository) -> None:
+        if not isinstance(repository, PostgresAlumniRepository):
+            self.reload(await repository.list_profiles(), await repository.list_edges())
+            return
+        new_graph = nx.Graph()
+        async with aclosing(repository.iter_graph_records()) as records:
+            async for record in records:
+                if isinstance(record, ProfileRecord):
+                    self._add_node_to_graph(new_graph, record)
+                else:
+                    self._add_edge_to_graph(new_graph, record)
         with self._lock:
             self._graph = new_graph
 

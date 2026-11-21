@@ -37,6 +37,7 @@ services:
       ENRICHMENT_CACHE_PATH: ""
       AUTH_SECRET: ${AUTH_SECRET:?A strong dev JWT signing secret is required}
       LINKCS_IMPORT_TOKEN: ${LINKCS_IMPORT_TOKEN:-}
+      BUNDLE_UPLOAD_DIRECTORY: /app
       CORS_ORIGINS: https://dev.abelink.app
       ALLOW_DEMO_AUTH: "false"
       ALLOW_PUBLIC_ACCESS: "true"

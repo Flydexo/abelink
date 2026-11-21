@@ -111,16 +111,23 @@ requises enregistrées, un push sur `dev` déclenche automatiquement la stack
 complète ; `main` conserve `./docker-compose.yml`, sans backend. Les agents ne
 doivent ni pousser ni lancer un déploiement manuel sans demande correspondante.
 
-## Importer un dump LinkCS JSON
+## Importer un export Abelink ou LinkCS
 
-Ouvrir `/app/import-linkcs` ou l’onglet **Import LinkCS** de l’application :
+Ouvrir `/app/import-linkcs` ou l’onglet **Import de données** de l’application :
 
-1. Sélectionner ou déposer un fichier `.json` contenant une liste d’objets LinkCS.
-2. En dev public, aucune clé ni connexion n’est demandée. En mode protégé
-   uniquement, saisir `LINKCS_IMPORT_TOKEN`, sans la partager dans le chat.
+1. Sélectionner le `.json` original créé par `scripts.export_import_bundle export`
+   (`version: 1`, `profiles`, `edges`), ou une liste d’objets LinkCS.
+2. Saisir la clé privée `LINKCS_IMPORT_TOKEN` pour un export Abelink, même en dev
+   public. Seules les listes LinkCS restent accessibles sans clé en dev public.
 3. Confirmer que vous êtes autorisé à importer ces données, puis lancer l’import.
 
-Le backend accepte jusqu’à 10 Mio, 5 000 entrées et 100 000 relations. Les champs
+Les exports Abelink jusqu’à 1 Gio sont transférés par blocs de 4 Mio puis lus
+par lots dans une transaction PostgreSQL. Les profils et relations existants
+ne sont pas remplacés ; les relations fournies sont importées directement sans
+en inférer de nouvelles. Ce format ne restaure pas les jetons ni le schéma SQL.
+
+Pour les listes LinkCS, le backend accepte jusqu’à 10 Mio, 5 000 entrées et
+100 000 relations générées. Les champs
 usuels LinkCS sont reconnus : `login`, `nom_complet` ou `prenom`/`nom`,
 `promotion`, emails, associations, clubs, biographie et réseaux sociaux.
 Il ajoute les nouveaux profils et liens sans écraser les données existantes,
@@ -129,8 +136,9 @@ L’import ne lance aucun appel IA payant et ne conserve pas le fichier brut.
 PostgreSQL applique l’import dans une transaction ; le mode mémoire est
 explicitement signalé, car ses données sont perdues au redémarrage.
 
-L’API est `POST /api/v1/linkcs/import`, multipart avec `file`, `confirmed=true`
-et, uniquement en mode protégé, l’en-tête `X-LinkCS-Import-Token`.
+L’API LinkCS est `POST /api/v1/linkcs/import`, multipart avec `file`,
+`confirmed=true` et, uniquement en mode protégé, `X-LinkCS-Import-Token`.
+Les transferts par blocs utilisent `/api/v1/linkcs/bundle`.
 
 ## Accès public en dev
 

@@ -5,11 +5,14 @@ from __future__ import annotations
 import math
 import unicodedata
 import uuid
-from dataclasses import dataclass, field
+from collections.abc import AsyncIterator, Iterator
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
+from itertools import islice
 from typing import Any, Optional, Protocol
 
 import numpy as np
+from anyio import to_thread
 from sqlalchemy import delete, select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
@@ -658,6 +661,52 @@ class PostgresAlumniRepository:
     def __init__(self, engine: AsyncEngine, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self.engine = engine
         self.session_factory = session_factory
+
+    async def import_bundle_records(self, records: Iterator[ProfileRecord | EdgeRecord]) -> tuple[int, int, int]:
+        """Insert the ordered bundle in one transaction without replacing stored rows."""
+        profiles_seen = profiles_added = edges_added = 0
+        profile_insert = pg_insert(ProfileORM).on_conflict_do_nothing(index_elements=[ProfileORM.id])
+        edge_insert = pg_insert(EdgeORM).on_conflict_do_nothing(
+            index_elements=[EdgeORM.source_id, EdgeORM.target_id, EdgeORM.edge_type]
+        )
+        async with self.session_factory() as session, session.begin():
+            while batch := await to_thread.run_sync(lambda: list(islice(records, 32))):
+                profiles, edges = [], []
+                for record in batch:
+                    if isinstance(record, ProfileRecord):
+                        row = vars(record).copy()
+                        row.pop("embedding_space")
+                        row["id"] = uuid.UUID(record.id)
+                        profiles.append(row)
+                    else:
+                        row = asdict(record)
+                        row["id"] = uuid.UUID(record.id) if record.id else uuid.uuid4()
+                        row["source_id"] = uuid.UUID(record.source_id)
+                        row["target_id"] = uuid.UUID(record.target_id)
+                        edges.append(row)
+                if profiles:
+                    profiles_seen += len(profiles)
+                    result = await session.execute(profile_insert.returning(ProfileORM.id), profiles)
+                    profiles_added += len(result.scalars().all())
+                if edges:
+                    result = await session.execute(edge_insert.returning(EdgeORM.id), edges)
+                    edges_added += len(result.scalars().all())
+        return profiles_seen, profiles_added, edges_added
+
+    async def iter_graph_records(self) -> AsyncIterator[ProfileRecord | EdgeRecord]:
+        """Read just the fields the graph uses, with a server-side cursor."""
+        async with self.session_factory() as session:
+            nodes = await session.stream(select(
+                ProfileORM.id, ProfileORM.full_name, ProfileORM.promo_year, ProfileORM.current_role,
+                ProfileORM.current_company, ProfileORM.sector, ProfileORM.photo_url, ProfileORM.is_student,
+            ).execution_options(yield_per=1000))
+            async for row in nodes.mappings():
+                yield ProfileRecord(**{**row, "id": str(row["id"])})
+            edges = await session.stream(select(
+                EdgeORM.source_id, EdgeORM.target_id, EdgeORM.edge_type, EdgeORM.probability, EdgeORM.reason,
+            ).execution_options(yield_per=1000))
+            async for row in edges.mappings():
+                yield EdgeRecord(**{**row, "source_id": str(row["source_id"]), "target_id": str(row["target_id"])})
 
     async def import_linkcs_records(
         self, profiles: list[ProfileRecord], edges: list[EdgeRecord]

@@ -68,11 +68,11 @@ GitHub integration, secrets, or maintenance work.
   a selected profile is context only, never a verified identity or private account.
   Token management routes are omitted in this mode. Public imports still require
   consent and enforce upload limits. Anonymous requests can spend provider credits.
-- `LINKCS_IMPORT_TOKEN` is optional and unused in public mode; preserve any stored
-  value for a future protected deployment. It is still required to import when
-  `ALLOW_PUBLIC_ACCESS=false`, the default outside the dev manifest. Never ship
-  its value in frontend assets or analytics. Do not enable public access in
-  production without a separate request.
+- Preserve any stored `LINKCS_IMPORT_TOKEN`. Public LinkCS list imports do not
+  use it. Abelink database bundle imports always require it, as do LinkCS list
+  imports when `ALLOW_PUBLIC_ACCESS=false` (the default outside the dev
+  manifest). Never ship its value in frontend assets or analytics. Do not
+  enable public access in production without a separate request.
 - Optional inputs: `GOOGLE_CLOUD_LOCATION` (default `global`),
   `TAVILY_API_KEY`, `PREFER_FREE_SEARCH` (default `true`), and `LINKEDIN_LI_AT`
   (leave empty initially; only the photo fallback needs it).

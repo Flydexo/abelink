@@ -12,6 +12,7 @@ from mcp.server.transport_security import TransportSecuritySettings
 from sqlalchemy.ext.asyncio import AsyncEngine
 from starlette.routing import Route
 
+from app.api.routes_bundle import BundleUploads, router as bundle_router
 from app.api.routes_chat import router as chat_router
 from app.api.routes_health import router as health_router
 from app.api.routes_import import router as import_router
@@ -166,9 +167,7 @@ def create_app(
         web = web_client or _build_default_web_client(cfg)
         engine = graph_engine or GraphEngine()
 
-        profiles = await repo.list_profiles()
-        edges = await repo.list_edges()
-        engine.reload(profiles, edges)
+        await engine.reload_from_repository(repo)
 
         enrichment = EnrichmentService(
             repository=repo,
@@ -203,8 +202,12 @@ def create_app(
         holder["container"] = container
         app.state.container = container
 
-        async with mcp.session_manager.run():
-            yield
+        app.state.bundle_uploads = BundleUploads()
+        try:
+            async with mcp.session_manager.run():
+                yield
+        finally:
+            await app.state.bundle_uploads.close()
 
         if db_engine is not None:
             await db_engine.dispose()
@@ -232,6 +235,7 @@ def create_app(
     app.include_router(health_router)
     app.include_router(import_router)
     app.include_router(linkcs_router)
+    app.include_router(bundle_router)
     app.include_router(search_router)
     app.include_router(chat_router)
     app.include_router(profiles_router)

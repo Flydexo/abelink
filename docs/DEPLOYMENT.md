@@ -551,10 +551,12 @@ not a verified identity. There is no per-visitor data isolation. Anonymous
 requests can inspect profiles, import shared data and spend provider credits.
 The member was warned of these consequences; no anonymous quota was added.
 
-Public LinkCS imports omit `X-LinkCS-Import-Token` but keep confirmation, JSON
-validation, size/relationship limits and additive transactions. Preserve any
-existing import key in Dokploy; it is unused publicly and still protects imports
-when public mode is disabled. Token management routes are omitted publicly.
+Public LinkCS list imports omit `X-LinkCS-Import-Token` but keep confirmation,
+JSON validation, size/relationship limits and additive transactions. The same
+page supports Abelink v1 database bundles up to 1 GiB, using 4 MiB requests and
+temporary disk storage rather than the backend's `/tmp` tmpfs. Preserve the
+existing import key in Dokploy: bundles require it even in public dev. See
+`backend/deploy/README.md` for limits and storage. Token management routes are omitted publicly.
 The frontend hides the key/token forms and provides a token-free MCP config.
 `/health` reports `public_access` for frontend behavior and verification.
 

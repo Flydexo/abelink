@@ -24,7 +24,10 @@ async def require_import_key(
 ) -> None:
     if request.app.state.container.settings.allow_public_access:
         return
-    expected_key = request.app.state.container.settings.linkcs_import_token
+    check_import_key(request.app.state.container.settings.linkcs_import_token, provided_key)
+
+
+def check_import_key(expected_key: str | None, provided_key: str | None) -> None:
     if not expected_key:
         raise HTTPException(503, "Import LinkCS désactivé : configurez LINKCS_IMPORT_TOKEN sur le backend.")
     if not provided_key or not secrets.compare_digest(provided_key.encode(), expected_key.encode()):
@@ -101,9 +104,7 @@ async def import_linkcs(
         )
     except (IntegrityError, ValueError):
         raise HTTPException(409, "Conflit d’import : aucune modification appliquée ; réessayez avec les données à jour.") from None
-    container.graph_engine.reload(
-        await container.repository.list_profiles(), await container.repository.list_edges(),
-    )
+    await container.graph_engine.reload_from_repository(container.repository)
     return LinkCSImportSummary(
         records_received=len(rows), profiles_added=profiles_added,
         profiles_skipped=len(rows) - profiles_added, relationships_added=relationships_added,

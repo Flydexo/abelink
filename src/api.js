@@ -177,6 +177,40 @@ export async function importLinkCSDump(file, importToken) {
   return res.json()
 }
 
+export async function importAbelinkBundle(file, importToken, onProgress) {
+  const endpoint = `${API_BASE}/api/v1/linkcs/bundle`
+  const headers = { 'X-LinkCS-Import-Token': importToken }
+  async function send(url, options) {
+    const response = await fetch(url, { ...options, headers: { ...headers, ...options?.headers } })
+    if (!response.ok) await parseError(response)
+    return response.status === 204 ? null : response.json()
+  }
+
+  const { id, chunk_size: chunkSize } = await send(`${endpoint}?size=${file.size}&confirmed=true`, { method: 'POST' })
+  const upload = `${endpoint}/${id}`
+  try {
+    for (let offset = 0; offset < file.size;) {
+      const chunk = file.slice(offset, offset + chunkSize)
+      const { received } = await send(`${upload}?offset=${offset}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/octet-stream' }, body: chunk,
+      })
+      offset = received
+      onProgress(offset)
+    }
+    await send(`${upload}/finish`, { method: 'POST' })
+  } catch (error) {
+    await send(upload, { method: 'DELETE' }).catch(() => {})
+    throw error
+  }
+
+  for (;;) {
+    const result = await send(upload)
+    if (result.state === 'completed') return { ...result.summary, warning: result.warning }
+    if (result.state === 'failed') throw new Error(result.detail)
+    await new Promise((resolve) => setTimeout(resolve, 2000))
+  }
+}
+
 export async function listApiTokens(userId = null) {
   const res = await fetch(`${API_BASE}/api/v1/tokens`, {
     headers: buildHeaders(userId),

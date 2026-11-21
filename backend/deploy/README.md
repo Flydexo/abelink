@@ -38,7 +38,7 @@ Git, a frontend `VITE_*` variable, or a Docker build argument.
 | `EMBEDDING_MODEL` | Yes | Embedding model verified as available with 768 output dimensions. |
 | `GOOGLE_APPLICATION_CREDENTIALS_JSON` | Yes for this Compose | Complete Google credential JSON, delivered as a Compose secret, not a container environment variable. |
 | `AUTH_SECRET` | Yes | Strong, random JWT secret dedicated to dev; it can be generated privately before configuration. |
-| `LINKCS_IMPORT_TOKEN` | No in public dev | Unused with public access enabled; preserve any existing value for protected mode, where the import still requires this key. |
+| `LINKCS_IMPORT_TOKEN` | For Abelink bundle imports or protected LinkCS imports | Preserve the existing value. Public LinkCS list imports do not use this key. |
 | `TAVILY_API_KEY` | Optional | Tavily fallback credentials. |
 | `PREFER_FREE_SEARCH` | Defaults to `true` | DuckDuckGo first, Tavily fallback; `false` selects Tavily directly when its key exists. |
 | `LINKEDIN_LI_AT` | Optional, leave empty initially | Sensitive LinkedIn session cookie, used only by the photo-fetch fallback in the current code. |
@@ -200,7 +200,7 @@ Google/Tavily connectivity, dataset quality, correct permissions, or user login.
 
 ## LinkCS upload and initial data
 
-The page `/app/import-linkcs` accepts JSON dumps from any visitor in public dev,
+The page `/app/import-linkcs` accepts LinkCS JSON lists from any visitor in public dev,
 without a key or account, including on an empty database. The member explicitly
 authorized this shared access. Outside public mode, the dedicated
 `LINKCS_IMPORT_TOKEN` is still required; do not expose its stored value.
@@ -213,6 +213,17 @@ inserts new profiles and relations in a single transaction. The graph reloads
 after commit. No paid embeddings/enrichment or external search is performed.
 The raw dump is not retained or sent to analytics. Memory-mode imports are
 temporary and the page reports this explicitly.
+
+The same page accepts the v1 JSON database bundle produced by
+`scripts.export_import_bundle export` (up to 1 GiB, PostgreSQL only). A bundle
+requires the existing `LINKCS_IMPORT_TOKEN` even in public dev. Each request
+transfers up to 4 MiB; the upload is temporarily stored on the backend's writable
+container filesystem (`BUNDLE_UPLOAD_DIRECTORY=/app` in dev), not the 64 MiB
+`/tmp` tmpfs. Allow disk space for the bundle and database growth. Use a single
+backend worker/replica: upload state is held in one process, uploads expire
+after 15 minutes idle and do not survive a restart. Only one bundle can be
+uploaded or processed at a time. The graph refreshes after the additive
+transaction commits; no inference or AI calls are run by the bundle import.
 
 In public mode, `/mcp` and `/mcp/` accept tool calls without a Bearer token.
 Use `user_email_or_id` to select a profile context, or omit it for the shared

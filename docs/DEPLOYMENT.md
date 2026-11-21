@@ -519,3 +519,19 @@ limits remain. No secret source, database volume, password, production service,
 or Dokploy setting needs changing for this fix. A configuration-only check
 does not test secret injection; the corrected source must be published and the
 next intended deployment checked before claiming a successful backend start.
+
+### Reserved identifier in the initial migration
+
+The member's November 21, 2026 startup log subsequently showed a PostgreSQL
+syntax error on `current_role` in `001_init.sql`. This is a reserved SQL value,
+so the column identifier must be double-quoted both in its declaration and in
+the generated search-vector expression. Raw search SQL now quotes it too;
+SQLAlchemy's PostgreSQL dialect already quotes the ORM attribute correctly.
+The column name stays the same: no schema rename, data reset, password change
+or volume removal is required. The existing transactional startup migration
+runner will retry the corrected idempotent SQL on the next deployment.
+
+`backend/tests/test_sql_migrations.py` checks migration syntax using PostgreSQL's
+parser through the dev-only `pglast` dependency, verifies that the search vector
+reads the profile column rather than the database session role, and checks ORM
+quoting. These checks do not connect to or migrate the deployed database.

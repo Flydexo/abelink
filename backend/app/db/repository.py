@@ -1016,7 +1016,7 @@ class PostgresAlumniRepository:
                         ELSE 0.0
                     END
                     + CASE
-                        WHEN :has_role AND COALESCE(p.current_role, '') ILIKE :role_pattern THEN 0.20
+                        WHEN :has_role AND COALESCE(p."current_role", '') ILIKE :role_pattern THEN 0.20
                         ELSE 0.0
                     END
                     + CASE

@@ -37,6 +37,8 @@ small, stable, and free of user-entered content.
 | `interactive_demo_result_viewed` | An interactive demo result appears | Same `source` values |
 | `interactive_demo_replayed` | Visitor clicks “Voir en action” | None |
 | `faq_item_opened` | A FAQ answer is opened | `question_index`: one-based position in the FAQ |
+| `waitlist_checkout_clicked` | Visitor starts the €1 Stripe checkout | `price_eur`, `has_email` (boolean only) |
+| `waitlist_signup_completed` | Stripe redirects back after successful payment | `price_eur`, `payment_provider`; once per browser session |
 
 ## Privacy rules
 
@@ -48,3 +50,5 @@ small, stable, and free of user-entered content.
   completion by `source`.
 - Keep event names and property meanings stable. Add a row here whenever an
   event is introduced or changed, and remove obsolete events from dashboards.
+- `waitlist_signup_completed` records a successful Stripe return page, not a
+  server-side payment webhook. It contains no email or payment identifiers.

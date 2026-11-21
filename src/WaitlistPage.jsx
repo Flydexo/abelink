@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion } from 'motion/react'
 import { track } from './analytics.js'
 
@@ -41,6 +41,14 @@ export default function WaitlistPage({ onNavigateHome }) {
     params.get('paiement') === 'succes' ||
     params.get('success') === 'true' ||
     params.get('status') === 'success'
+
+  useEffect(() => {
+    if (!isSuccess) return
+    const dedupeKey = 'abelink_waitlist_signup_tracked'
+    if (window.sessionStorage.getItem(dedupeKey)) return
+    window.sessionStorage.setItem(dedupeKey, '1')
+    track('waitlist_signup_completed', { price_eur: 1, payment_provider: 'stripe' })
+  }, [isSuccess])
 
   function handleCheckout(e) {
     e.preventDefault()

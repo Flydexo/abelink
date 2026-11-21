@@ -2,28 +2,25 @@
 
 ## Setup
 
-The website uses Abelink's PostHog project key and managed reverse proxy by
-default. The public project key can be overridden with these **build-time**
-variables wherever the Docker image is built:
+The website uses Abelink's PostHog project key and the managed reverse proxy
+`https://t.abelink.app`. The public project key can be overridden with this
+**build-time** variable wherever the Docker image is built:
 
 | Variable | Value |
 | --- | --- |
 | `VITE_POSTHOG_KEY` | The project's public project API key |
-| `VITE_POSTHOG_HOST` | Defaults to `https://t.abelink.app` |
 
 The key is intentionally public and must never be an ingest personal API key.
 The Docker build passes overrides to Vite; setting them only as container
 runtime variables will not configure the static website. For a local build, put
-overrides in an ignored `.env.local` file at the repository root. The managed
-proxy is used unless `VITE_POSTHOG_HOST` overrides it.
+the key override in an ignored `.env.local` file at the repository root. The
+ingest host is fixed to `https://t.abelink.app` in the analytics module.
 
-Visitors see a consent choice before PostHog initializes. Analytics starts only
-after acceptance. Refusing prevents analytics initialization; the footer's
-“Préférences cookies” control lets visitors change their choice later. PostHog
+PostHog initializes on page load without an analytics consent prompt. PostHog
 autocapture, page-leave capture, session recording, and person profiles are
-disabled. The website sends a manual `$pageview` after consent. Consent is held
-in local storage. Query strings and URL fragments are removed from captured
-`$current_url` values. The SDK uses PostHog defaults `2026-05-30`.
+disabled. The website sends a manual `$pageview` on page load. Query strings and
+URL fragments are removed from captured `$current_url` values. The SDK uses
+PostHog defaults `2026-05-30`.
 
 ## Events
 
@@ -32,7 +29,7 @@ small, stable, and free of user-entered content.
 
 | Event | When | Properties |
 | --- | --- | --- |
-| `$pageview` | Once when analytics initializes after consent | PostHog's standard page context |
+| `$pageview` | Once on page load | PostHog's standard page context |
 | `demo_request_opened` | A demo request dialog opens | `placement`: `navigation`, `hero`, or `footer_cta` |
 | `demo_request_submitted` | FormSubmit confirms the request | None |
 | `demo_request_failed` | FormSubmit request fails | None |
@@ -45,8 +42,7 @@ small, stable, and free of user-entered content.
 
 - Never send names, email addresses, alumni network names, free-text searches,
   search content, form payloads, or clipboard content to analytics.
-- Do not enable autocapture or session recording without a separate review and
-  an updated consent and privacy approach.
+- Keep autocapture and session recording disabled.
 - Use the dashboard to compare the funnel from pageview to dialog open to
   successful request. Segment CTA opens by `placement`; compare demo search
   completion by `source`.

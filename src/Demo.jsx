@@ -125,29 +125,6 @@ function Path({ s, wide }) {
   )
 }
 
-function ResultPending() {
-  return (
-    <div className="result-pending" aria-hidden="true">
-      <div className="pending-head">
-        <span className="pending-avatar" />
-        <div className="pending-lines">
-          <span className="pending-bar short" />
-          <span className="pending-bar mid" />
-        </div>
-      </div>
-      <div className="pending-path">
-        <span className="pending-line" />
-        {[0, 1, 2, 3].map((k) => (
-          <div key={k} className="pending-node">
-            <span className="pending-dot" />
-            <span className="pending-bar tiny" />
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
 function TargetPanel({ s, wide }) {
   return (
     <motion.div className="result-panel" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
@@ -253,13 +230,15 @@ export default function Demo({ replay = 0 }) {
     })()
   }, [replay])
 
-  async function start(q, id = ++runId.current, source = 'manual_search') {
+  async function start(q, id, source = 'manual_search') {
     if (!q.trim()) return
+    const currentId = id ?? ++runId.current
+    setQuery('')
     track('interactive_demo_search_submitted', { source })
-    const alive = () => runId.current === id
+    const alive = () => runId.current === currentId
     const { scenario: s, exact } = match(q)
     const set = (p) => setRun((r) => ({ ...r, ...p }))
-    setRun({ s, exact, greet: false, started: 0, done: 0, final: false, result: false })
+    setRun({ s, exact, query: q.trim(), greet: false, started: 0, done: 0, final: false, result: false })
     await sleep(350); if (!alive()) return
     set({ greet: true })
     await sleep(1100); if (!alive()) return
@@ -290,71 +269,59 @@ export default function Demo({ replay = 0 }) {
     })()
   }, [inView])
 
-  const take = () => { touched.current = true; runId.current++ }
+  const take = () => { touched.current = true; if (!run) runId.current++ }
   const submit = (q, source = 'manual_search') => { touched.current = true; setQuery(q); start(q, undefined, source) }
 
   return (
     <section id="demo" className="section demo" ref={ref}>
       <div className="wrap">
-        <div className="demo-box">
-          <form className="search" onSubmit={(e) => { e.preventDefault(); submit(query) }} role="search">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-              <circle cx="9" cy="9" r="6" stroke="currentColor" strokeWidth="1.8" />
-              <path d="M14 14l4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-            </svg>
-            <input
-              value={query}
-              onChange={(e) => { take(); setQuery(e.target.value) }}
-              onFocus={take}
-              placeholder="Décrivez ce que vous cherchez…"
-              aria-label="Décrivez ce que vous cherchez"
-            />
-            <button className="btn primary" type="submit">Rechercher</button>
-          </form>
-
-          <div className="chips">
-            {SUGGESTIONS.map((c) => (
-              <button
-                key={c}
-                type="button"
-                className={`chip${run?.s.query === c ? ' active' : ''}`}
-                onClick={() => submit(c, 'suggestion')}
-              >
-                {c}
-              </button>
-            ))}
+        <div className="demo-box chat-demo">
+          <div className="chat-toolbar">
+            <span className="chat-brand"><span className="agent-mark" aria-hidden="true" /> Abelink</span>
+            <span className="demo-label">Démo interactive · profils fictifs</span>
           </div>
-
-          <div className="stage" aria-live="polite">
+          <div className="chat-thread" aria-live="polite" aria-busy={Boolean(run && !run.result)}>
+            {!run && <div className="chat-welcome"><span className="section-kicker">Votre réseau, autrement</span><h2>Une envie. Une conversation.<br />Les bonnes personnes.</h2><p>Décrivez votre projet ou essayez un exemple ci-dessous.</p></div>}
             {run && (
-              <div className="demo-content">
-                <div className="demo-grid">
-                  <div className="demo-steps-col">
-                    <div className="agent-head">
-                      <span className="agent-mark" aria-hidden="true" />
-                      <p className="say">{run.greet && <Typing text="Ok, je commence à chercher." />}</p>
-                    </div>
-                    {!run.exact && (
-                      <p className="muted small fallback-note">
-                        Je n’ai pas bien compris, je pars sur l’exemple le plus proche.
-                      </p>
-                    )}
-                    <Steps s={run.s} started={run.started} done={run.done} />
-                    {run.final && (
-                      <p className="agent-summary">
-                        <Typing text={run.s.final} speed={12} />
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="demo-result-col">
-                    {run.result ? <TargetPanel s={run.s} wide={wide} /> : <ResultPending />}
-                  </div>
+              <div className="demo-content" key={run.query}>
+                <div className="chat-user"><span className="chat-speaker">Vous</span><p>{run.query}</p></div>
+                <div className="chat-assistant">
+                  <div className="agent-head"><span className="agent-mark" aria-hidden="true" /><span className="chat-speaker">Abelink</span></div>
+                  <p className="say">{run.greet ? <Typing text={
+                    'J’explore votre réseau alumni pour trouver les personnes les plus pertinentes et les contacts qui peuvent vous présenter. Objectif : ' + run.s.parse.charAt(0).toLowerCase() + run.s.parse.slice(1) + '.'
+                  } /> : 'Je prépare votre recherche…'}</p>
+                  {!run.exact && <p className="muted small fallback-note">Cette démo utilise un scénario prédéfini proche de votre demande, pas une recherche réelle.</p>}
+                  {run.started > 0 && (
+                    <details className="chat-research" open={!run.result}>
+                      <summary>{run.result ? 'Recherche terminée · voir les étapes' : 'Exploration du réseau en cours…'}</summary>
+                      <Steps s={run.s} started={run.started} done={run.done} />
+                    </details>
+                  )}
+                  {run.final && <p className="agent-summary"><Typing text={run.s.final} speed={12} /></p>}
+                  {run.result && <><TargetPanel s={run.s} wide={wide} /><BottomPanel key={run.query} s={run.s} /></>}
                 </div>
-
-                {run.result && <BottomPanel s={run.s} />}
               </div>
             )}
+          </div>
+          <div className="chat-compose">
+            <div className="chips" aria-label="Exemples de recherches">
+              {SUGGESTIONS.map((suggestion, index) => (
+                <button key={suggestion} type="button" className={
+                  'chip' + (run?.s.query === suggestion ? ' active' : '')
+                } onClick={() => submit(suggestion, 'suggestion')}>
+                  {['Un stage dans l’énergie', 'Un échange dans la santé', 'Découvrir la finance', 'Lancer ma startup'][index] || suggestion}<span aria-hidden="true"> ↗</span>
+                </button>
+              ))}
+            </div>
+            <form className="search chat-input" onSubmit={(event) => { event.preventDefault(); submit(query) }}>
+              <textarea rows={2} value={query} onChange={(event) => { take(); setQuery(event.target.value) }} onFocus={take}
+                onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); submit(query) } }}
+                placeholder="Je cherche un stage de césure dans une boîte qui travaille dans l’énergie…" aria-label="Votre message à Abelink" />
+              <button className="chat-send" type="submit" disabled={!query.trim()} aria-label="Envoyer le message">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 19V5m-6 6 6-6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              </button>
+            </form>
+            <p className="chat-disclaimer">Un aperçu du fonctionnement d’Abelink. Aucun compte connecté, aucun message envoyé.</p>
           </div>
         </div>
       </div>

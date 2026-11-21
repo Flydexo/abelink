@@ -13,3 +13,8 @@ Vite + React + Motion, 100 % statique.
 - Environnements, déploiements, DNS/TLS et maintenance : [guide d'exploitation](docs/DEPLOYMENT.md).
 - `main` → production sur `abelink.app` ; `dev` → développement sur `dev.abelink.app`.
 - Administration Dokploy : `https://dokploy.abelink.app`.
+
+## Pages légales
+
+- `/mentions-legales` et `/confidentialite` : informations légales et traitements du site.
+- Informations à compléter avant finalisation : [docs/LEGAL.md](docs/LEGAL.md).

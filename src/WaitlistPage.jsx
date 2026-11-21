@@ -157,6 +157,7 @@ export default function WaitlistPage({ onNavigateHome }) {
                 </button>
               </form>
 
+              <p className="form-privacy">Votre email optionnel sert à préremplir le paiement Stripe. <a href="/confidentialite">Consulter la politique de confidentialité</a>.</p>
               <p className="stripe-note">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path

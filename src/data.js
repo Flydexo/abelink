@@ -29,7 +29,7 @@ export const scenarios = [
       ['Sous 7 jours', 'Léa vous introduit auprès de Julien : proposez 20 minutes pour parler de la césure.'],
     ],
     message:
-      'Bonjour Hugo, je suis en 2A et membre du club Énergie comme vous. Je cherche un stage de césure dans l’énergie. Accepteriez-vous de me mettre en relation avec Léa Benoit ? Merci beaucoup !',
+      'Bonjour Hugo, je suis en 2A et membre du club Énergie comme vous. Je cherche un stage de césure dans une boîte qui travaille dans l’énergie. Accepteriez-vous de me mettre en relation avec Léa Benoit ? Merci beaucoup !',
   },
   {
     query: 'Je veux échanger avec un product manager dans la santé',

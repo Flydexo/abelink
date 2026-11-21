@@ -56,6 +56,7 @@ export default function DemoSheet({ open, onClose }) {
                 <label>Nom<input name="name" autoComplete="name" required autoFocus /></label>
                 <label>Email professionnel<input name="email" type="email" autoComplete="email" required /></label>
                 <label>Votre réseau alumni<input name="network" required placeholder="Ex. Association des anciens de…" /></label>
+                <p className="form-privacy">Ces informations servent à répondre à votre demande, transmise par FormSubmit. <a href="/confidentialite">Confidentialité</a></p>
                 <input className="hp" name="_honey" tabIndex={-1} autoComplete="off" aria-hidden="true" />
                 {state === 'error' && <p className="form-error" role="alert">L’envoi a échoué. Réessayez dans un instant.</p>}
                 <button className="btn primary wide" type="submit" disabled={state === 'sending'}>

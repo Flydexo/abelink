@@ -1,11 +1,27 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion } from 'motion/react'
 import Demo from './Demo.jsx'
+import StepIllustration from './StepIllustration.jsx'
+import LegalPage from './LegalPage.jsx'
 import DemoSheet from './DemoSheet.jsx'
+import WaitlistPage from './WaitlistPage.jsx'
 import { track } from './analytics.js'
 
-const Logo = () => (
-  <a className="logo" href="#top" aria-label="Abelink, accueil">Abe<span>link</span></a>
+const isWaitlistPath = (pathname) => pathname === '/waitlist' || pathname === '/eleves'
+
+const Logo = ({ onNavigate }) => (
+  <a
+    className="logo"
+    href="/"
+    aria-label="Abelink, accueil"
+    onClick={(e) => {
+      if (!onNavigate) return
+      e.preventDefault()
+      onNavigate('/')
+    }}
+  >
+    Abe<span>link</span>
+  </a>
 )
 
 const Reveal = ({ children, className, delay = 0 }) => (
@@ -57,8 +73,34 @@ function Faq() {
 }
 
 export default function App() {
+  const [pathname, setPathname] = useState(() => window.location.pathname)
   const [demo, setDemo] = useState(false)
   const [demoReplay, setDemoReplay] = useState(0)
+
+  useEffect(() => {
+    const onPopState = () => setPathname(window.location.pathname)
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [])
+
+  const navigate = (to, hash = '') => {
+    const targetUrl = `${to}${hash}`
+    if (window.location.pathname !== to || window.location.search) {
+      window.history.pushState({}, '', targetUrl)
+      setPathname(to)
+    }
+    if (hash) {
+      requestAnimationFrame(() => {
+        document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: 'smooth' })
+      })
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }
+
+  const onWaitlist = isWaitlistPath(pathname)
+  const legalKind = pathname === '/confidentialite' ? 'privacy' : pathname === '/mentions-legales' ? 'legal' : null
+
   const openDemo = (placement = 'unknown') => {
     track('demo_request_opened', { placement })
     setDemo(true)
@@ -74,14 +116,42 @@ export default function App() {
     <div id="top">
       <header className="nav">
         <div className="nav-in">
-          <Logo />
+          <Logo onNavigate={navigate} />
           <nav aria-label="Principal">
-            <a href="#demo">En action</a><a href="#comment">Fonctionnement</a><a href="#pour-qui">Pour qui</a><a href="#faq">FAQ</a>
+            {onWaitlist || legalKind ? (
+              <a href="/" onClick={(e) => { e.preventDefault(); navigate('/') }}>Accueil</a>
+            ) : (
+              <>
+                <a href="#demo">En action</a><a href="#comment">Fonctionnement</a><a href="#pour-qui">Pour qui</a><a href="#faq">FAQ</a>
+              </>
+            )}
+            <a
+              href="/waitlist"
+              className={onWaitlist ? 'nav-active' : undefined}
+              onClick={(e) => {
+                e.preventDefault()
+                track('waitlist_page_opened', { placement: 'navigation' })
+                navigate('/waitlist')
+              }}
+            >
+              Élèves · Waitlist
+            </a>
           </nav>
-          <button className="btn small" onClick={() => openDemo('navigation')}>Demander une démo</button>
+          {onWaitlist ? (
+            <a className="btn small" href="#waitlist-checkout" onClick={(e) => { e.preventDefault(); document.querySelector('.checkout-card')?.scrollIntoView({ behavior: 'smooth' }) }}>
+              Rejoins la waitlist
+            </a>
+          ) : (
+            <button className="btn small" onClick={() => openDemo('navigation')}>Demander une démo</button>
+          )}
         </div>
       </header>
 
+      {legalKind ? (
+        <LegalPage kind={legalKind} onNavigate={navigate} />
+      ) : onWaitlist ? (
+        <WaitlistPage onNavigateHome={() => navigate('/')} />
+      ) : (
       <main>
         <section className="hero">
           <div className="wrap">
@@ -94,40 +164,69 @@ export default function App() {
             <motion.div className="actions" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
               <Cta placement="hero" /><button className="btn ghost" onClick={replayDemo}>Voir en action</button>
             </motion.div>
+            <motion.p className="hero-student-link" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.26 }}>
+              Tu es étudiant ?{' '}
+              <a
+                href="/waitlist"
+                onClick={(e) => {
+                  e.preventDefault()
+                  track('waitlist_page_opened', { placement: 'hero' })
+                  navigate('/waitlist')
+                }}
+              >
+                Rejoins la waitlist pour 1 € →
+              </a>
+            </motion.p>
           </div>
         </section>
 
         <Demo replay={demoReplay} />
 
         <section className="section problem">
-          <div className="wrap">
-            <Reveal><h2>Un étudiant cherche un stage. Qui peut le mettre en relation&nbsp;?</h2></Reveal>
-            <Reveal><p className="lead">Pour les responsables d’associations alumni, la situation est familière : un étudiant de l’école cherche un stage de césure dans l’énergie, mais ne sait pas quel ancien contacter chez Engie ou EDF. Il passe ses soirées à parcourir LinkedIn, hésite à écrire à des inconnus et risque de laisser passer des pistes faute d’introduction.</p></Reveal>
-            <div className="cards problem-quotes">
-              <Reveal className="card"><p>« Je cherche un stage dans l’énergie : quel alumni peut me conseiller ? »</p></Reveal>
-              <Reveal className="card" delay={0.08}><p>« J’ai passé des heures sur LinkedIn sans trouver à qui écrire. »</p></Reveal>
-            </div>
-            <Reveal><p>Abelink transforme les parcours de votre réseau en pistes concrètes : les bons alumni, les liens qui vous rapprochent et une demande d’introduction à envoyer.</p></Reveal>
+          <div className="wrap problem-layout">
+            <Reveal className="problem-copy">
+              <span className="section-kicker">Le bon contact change tout</span>
+              <h2>Un étudiant cherche un stage.<br /><span>Qui peut le mettre en relation ?</span></h2>
+              <p>Il sait où il veut aller. Pas encore à qui écrire. Entre les profils LinkedIn et l’annuaire de l’école, le bon contact reste souvent invisible.</p>
+              <p>Abelink fait le lien entre son projet, les alumni pertinents et les personnes qui peuvent les présenter.</p>
+              <a className="text-link" href="#demo">Voir le chemin avec Abelink <span aria-hidden="true">↗</span></a>
+            </Reveal>
+            <Reveal className="connection-story" delay={0.12}>
+              <span className="story-label">De « je ne connais personne » à…</span>
+              <div className="story-request">« Je cherche un stage de césure dans l’énergie. »</div>
+              <ol className="story-path" aria-label="Exemple fictif de mise en relation">
+                <li><span className="story-avatar">V</span><div><strong>Vous</strong><span>Un projet, mais pas de contact</span></div></li>
+                <li><span className="story-avatar connector">HM</span><div><strong>Hugo, votre premier lien</strong><span>Le même club Énergie que vous</span></div><span className="story-tag">En commun</span></li>
+                <li><span className="story-avatar destination">JM</span><div><strong>Julien, chez Engie</strong><span>Un alumni à qui parler de votre césure</span></div></li>
+              </ol>
+              <div className="story-outcome"><span aria-hidden="true">↳</span> Une introduction plutôt qu’une candidature à froid.</div>
+              <span className="story-footnote">Exemple illustratif · chemin simplifié</span>
+            </Reveal>
           </div>
         </section>
 
-        <section id="comment" className="section">
+        <section id="comment" className="section how-section">
           <div className="wrap">
-            <Reveal><h2>Trois étapes. Un chemin clair.</h2></Reveal>
-            <div className="steps">
-              {STEPS.map(([t, d], i) => (
-                <Reveal key={t} className="step" delay={i * 0.08}><h3>{t}</h3><p>{d}</p></Reveal>
+            <Reveal className="section-heading"><span className="section-kicker">Simple, du début à la rencontre</span><h2>Trois étapes.<br />Un chemin clair.</h2><p>Pas besoin de savoir qui chercher.<br />Commencez par ce que vous voulez faire.</p></Reveal>
+            <div className="steps illustrated-steps">
+              {STEPS.map(([title, description], index) => (
+                <Reveal key={title} className="step" delay={index * 0.08}>
+                  <StepIllustration step={index} />
+                  <span className="step-index">0{index + 1}</span><h3>{title}</h3><p>{description}</p>
+                </Reveal>
               ))}
             </div>
           </div>
         </section>
 
-        <section id="pour-qui" className="section tint">
-          <div className="wrap">
-            <Reveal><h2>Un réseau. Trois façons d’en tirer parti.</h2></Reveal>
-            <div className="cards">
-              {AUDIENCES.map(([h, d], i) => (
-                <Reveal key={h} className="card" delay={i * 0.08}><h3>{h}</h3><p>{d}</p></Reveal>
+        <section id="pour-qui" className="section audience-section">
+          <div className="wrap audience-layout">
+            <Reveal className="audience-intro"><span className="section-kicker">À chaque membre, son déclic</span><h2>Un réseau.<br />Trois façons<br />d’en tirer parti.</h2><p>De la première recherche à la mise en relation, chaque rôle fait vivre le réseau.</p><button className="text-link" onClick={() => openDemo('audiences')}>Parlons de votre réseau <span aria-hidden="true">↗</span></button></Reveal>
+            <div className="audience-list">
+              {AUDIENCES.map(([title, description], index) => (
+                <Reveal key={title} className="audience-row" delay={index * 0.08}>
+                  <span className="audience-number">0{index + 1}</span><div><span className="audience-role">{['Associations alumni', 'Étudiants & membres', 'Anciens & mentors'][index]}</span><h3>{title}</h3><p>{description}</p></div>
+                </Reveal>
               ))}
             </div>
           </div>
@@ -146,12 +245,26 @@ export default function App() {
           </div>
         </section>
       </main>
+      )}
 
       <footer className="footer">
         <div className="wrap foot-in">
-          <Logo />
+          <Logo onNavigate={navigate} />
           <span>Abelink · © 2026</span>
-          <span><a href="#top">Confidentialité</a> · <a href="#top">Mentions légales</a></span>
+          <span>
+            <a
+              href="/waitlist"
+              onClick={(e) => {
+                e.preventDefault()
+                track('waitlist_page_opened', { placement: 'footer' })
+                navigate('/waitlist')
+              }}
+            >
+              Waitlist élèves (1 €)
+            </a>
+            {' · '}
+            <a href="/confidentialite" onClick={(event) => { if (!event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); navigate('/confidentialite') } }}>Confidentialité</a> · <a href="/mentions-legales" onClick={(event) => { if (!event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); navigate('/mentions-legales') } }}>Mentions légales</a>
+          </span>
         </div>
       </footer>
 

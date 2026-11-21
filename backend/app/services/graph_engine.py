@@ -286,14 +286,14 @@ class GraphEngine:
             if best_company_edge is not None:
                 inferred.append(best_company_edge)
 
-            # 2. INFERRED_ASSO (same student association + close cohorts <= 3 years)
+            # 2. INFERRED_ASSO (same student association + close cohorts <= 1 year)
             if my_assos and other.associations:
                 other_assos = {normalize_association(a): a for a in other.associations if normalize_association(a)}
                 shared_keys = set(my_assos.keys()) & set(other_assos.keys())
                 promo_ok = (
                     profile.promo_year is None
                     or other.promo_year is None
-                    or abs(profile.promo_year - other.promo_year) <= 3
+                    or abs(profile.promo_year - other.promo_year) <= 1
                 )
                 if shared_keys and promo_ok:
                     shared_key = sorted(shared_keys)[0]
@@ -308,20 +308,22 @@ class GraphEngine:
                         )
                     )
 
-            # 3. INFERRED_SCHOOL (same CentraleSupélec cohort delta <= 1 year)
+            # 3. INFERRED_SCHOOL (same CentraleSupélec cohort or ±1 year)
             if profile.promo_year is not None and other.promo_year is not None:
-                if abs(profile.promo_year - other.promo_year) <= 1:
+                promo_delta = abs(profile.promo_year - other.promo_year)
+                if promo_delta <= 1:
                     promo_label = (
                         str(profile.promo_year)
-                        if profile.promo_year == other.promo_year
+                        if promo_delta == 0
                         else f"{min(profile.promo_year, other.promo_year)}-{max(profile.promo_year, other.promo_year)}"
                     )
+                    school_prob = 0.45 if promo_delta == 0 else 0.30
                     inferred.append(
                         EdgeRecord(
                             source_id=src_id,
                             target_id=dst_id,
                             edge_type="INFERRED_SCHOOL",
-                            probability=0.35,
+                            probability=school_prob,
                             reason=f"Réseau CentraleSupélec (promo {promo_label})",
                         )
                     )

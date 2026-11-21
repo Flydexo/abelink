@@ -1125,28 +1125,7 @@ class ChatAgentService:
         mutuals: list[MutualContact] = []
         seen_ids: set[str] = set()
 
-        for path in paths:
-            if not path.hops:
-                continue
-            first_hop = path.hops[0]
-            if first_hop.to_id == target.id or first_hop.to_id in seen_ids:
-                continue
-            seen_ids.add(first_hop.to_id)
-            fh_prof = profile_by_id.get(first_hop.to_id)
-            reason = first_hop.reason
-            if len(path.hops) == 2:
-                reason = f"{first_hop.reason} · connaît {target.full_name} ({path.hops[1].reason})"
-            mutuals.append(
-                MutualContact(
-                    id=first_hop.to_id,
-                    full_name=first_hop.to_name,
-                    short_meta=fh_prof.to_profile_summary().short_meta if fh_prof else first_hop.to_meta,
-                    reason=reason,
-                    probability=first_hop.probability,
-                    photo_url=fh_prof.photo_url if fh_prof else None,
-                )
-            )
-
+        # 1. Prioritize direct 1-intermediary (2-hop) mutual contacts, sorted by closeness.
         student_neighbors = {
             nid: (prob, reason)
             for nid, prob, reason in self.graph_engine.get_direct_neighbors(student_id)
@@ -1155,9 +1134,15 @@ class ChatAgentService:
             nid: (prob, reason)
             for nid, prob, reason in self.graph_engine.get_direct_neighbors(target.id)
         }
+        shared_candidates: list[tuple[float, str]] = []
         for shared_id in set(student_neighbors) & set(target_neighbors):
-            if shared_id in seen_ids or shared_id in (student_id, target.id):
+            if shared_id in (student_id, target.id):
                 continue
+            prob_s, _ = student_neighbors[shared_id]
+            prob_t, _ = target_neighbors[shared_id]
+            shared_candidates.append((prob_s * prob_t, shared_id))
+
+        for _, shared_id in sorted(shared_candidates, reverse=True):
             prof = profile_by_id.get(shared_id)
             if prof is None:
                 continue
@@ -1172,6 +1157,33 @@ class ChatAgentService:
                     reason=f"{reason_s} · connaît {target.full_name} ({reason_t})",
                     probability=prob_s,
                     photo_url=prof.photo_url,
+                )
+            )
+
+        # 2. Fallback / complement with multi-hop paths, explicitly explaining intermediate hops.
+        for path in paths:
+            if not path.hops:
+                continue
+            first_hop = path.hops[0]
+            if first_hop.to_id == target.id or first_hop.to_id in seen_ids:
+                continue
+            seen_ids.add(first_hop.to_id)
+            fh_prof = profile_by_id.get(first_hop.to_id)
+            if len(path.hops) == 2:
+                reason = f"{first_hop.reason} · connaît {target.full_name} ({path.hops[1].reason})"
+            else:
+                chain_steps = " · ".join(
+                    f"{h.from_name} → {h.to_name} ({h.reason})" for h in path.hops
+                )
+                reason = f"Chemin en {len(path.hops)} étapes (aucun intermédiaire direct) : {chain_steps}"
+            mutuals.append(
+                MutualContact(
+                    id=first_hop.to_id,
+                    full_name=first_hop.to_name,
+                    short_meta=fh_prof.to_profile_summary().short_meta if fh_prof else first_hop.to_meta,
+                    reason=reason,
+                    probability=first_hop.probability,
+                    photo_url=fh_prof.photo_url if fh_prof else None,
                 )
             )
 

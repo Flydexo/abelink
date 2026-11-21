@@ -77,7 +77,7 @@ Ne jamais supprimer le volume ni changer `POSTGRES_PASSWORD` après initialisati
 sans une procédure de sauvegarde et de rotation SQL autorisée.
 
 Le Compose injecte les variables applicatives dans le conteneur. Le JSON Google
-est transmis par un secret Compose, monté sous `/run/secrets/google-adc.json` ;
+est transmis par un secret Compose, injecté sous `/run/secrets/google-adc.json` ;
 `GOOGLE_APPLICATION_CREDENTIALS` pointe vers ce fichier. Ce chemin seul ne
 remplace pas le contenu JSON à fournir dans Dokploy.
 

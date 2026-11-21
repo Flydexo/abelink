@@ -45,7 +45,7 @@ services:
     secrets:
       - source: google_adc
         target: google-adc.json
-    read_only: true
+    read_only: false
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=64m,mode=1777
     cap_drop:

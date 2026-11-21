@@ -504,3 +504,18 @@ student login or bypass authorization requirements.
 See `backend/deploy/README.md` for secret handling, validation and the remaining
 authentication/data/ranking blockers. `backend/deploy/dev.env.example` is a
 public key-name template only, never the storage location for real credentials.
+
+### Environment-backed secret startup failure
+
+The member's subsequent dev deployment log shows both images built and
+PostgreSQL healthy, but backend startup failed with `cannot create secret`
+in a `read-only service` because `file` is the sole supported option there.
+This is not evidence of invalid Google credentials or a database failure.
+
+The dev backend manifest now explicitly sets `read_only: false` so Compose can
+copy the environment-backed Google secret into the container before startup.
+The non-root user, dropped capabilities, no-new-privileges and temporary-file
+limits remain. No secret source, database volume, password, production service,
+or Dokploy setting needs changing for this fix. A configuration-only check
+does not test secret injection; the corrected source must be published and the
+next intended deployment checked before claiming a successful backend start.

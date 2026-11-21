@@ -72,10 +72,16 @@ GitHub integration, secrets, or maintenance work.
   preserve unrelated keys and credentials. Re-read the installed API schema
   before saving. Report key names/presence only, never values or complete API
   records. Never put these secrets in Git, build arguments, or `VITE_*` values.
-- The Google JSON is an environment-backed Compose secret mounted at
+- The Google JSON is an environment-backed Compose secret delivered at
   `/run/secrets/google-adc.json`, not an image file or container environment
   variable. Verify Dokploy passes it to Compose; do not replace it with a
   literal credential file in source.
+- Keep the dev backend's `read_only: false`: Docker Compose injects secrets
+  sourced from environment variables by copying a file into the container
+  before startup. A read-only root filesystem rejects this operation even
+  when `docker compose config` passes. Preserve the non-root user, dropped
+  capabilities and no-new-privileges; do not move credentials into the image
+  or container environment to bypass the error.
 - `DEMO_MODE`, `ALLOW_DEMO_AUTH`, `EMBEDDING_DIM`, CORS, public API URL, and cache
   settings are fixed by the dev service definition. Adding them to Dokploy's
   `env` does not override literal Compose settings. Do not enable public demo

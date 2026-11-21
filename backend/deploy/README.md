@@ -95,7 +95,8 @@ this Compose. Production and Dokploy's administration database remain separate.
 ### Google credentials
 
 The Compose secret reads `GOOGLE_APPLICATION_CREDENTIALS_JSON` from the Compose
-process environment and mounts it read-only at `/run/secrets/google-adc.json`.
+process environment and injects a file at `/run/secrets/google-adc.json` before
+the container starts (default file mode 0444).
 The container receives only `GOOGLE_APPLICATION_CREDENTIALS` pointing to this
 file. The JSON is not copied into the image. Use a dedicated, least-privilege
 dev identity; do not provide a personal browser cookie as Google credentials.
@@ -106,6 +107,14 @@ the expanded Compose configuration with real credentials. Confirm that the
 installed Docker Compose supports environment-backed secrets and that Dokploy
 provides this input to its Compose process before deploying. If not, stop and
 prepare an approved protected file mount; never bake the JSON into the image.
+
+Keep `backend.read_only: false`. Docker Compose copies environment-backed
+secrets into the container filesystem, and refuses to do so with a read-only
+root filesystem (`file` is the sole supported secret source in that case).
+The application still runs as the image's non-root user with all capabilities
+dropped and `no-new-privileges`. The credentials remain out of the image,
+frontend assets and application environment. `docker compose config` alone
+does not exercise this secret injection or prove runtime compatibility.
 
 ## Proposed public routing
 

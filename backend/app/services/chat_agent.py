@@ -1912,6 +1912,34 @@ class ChatAgentService:
         )
 
         people: list[ChatPersonResult] = []
+        missing_photo_profiles = [
+            p for p in selected_profiles
+            if p.linkedin_url and (not p.photo_url or "licdn.com" not in p.photo_url.lower())
+        ]
+        if missing_photo_profiles:
+            import httpx
+            from app.services.web_scraper import fetch_og_image
+
+            sem = asyncio.Semaphore(5)
+
+            async def _fetch_one(p: Any, client: httpx.AsyncClient) -> None:
+                async with sem:
+                    url = await fetch_og_image(p.linkedin_url, timeout_seconds=10.0, http_client=client)
+                    if isinstance(url, str) and url:
+                        p.photo_url = url
+
+            try:
+                async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+                    await asyncio.wait_for(
+                        asyncio.gather(
+                            *(_fetch_one(p, client) for p in missing_photo_profiles),
+                            return_exceptions=True,
+                        ),
+                        timeout=12.0,
+                    )
+            except asyncio.TimeoutError:
+                pass
+
         for prof in selected_profiles:
             muts, hops = state.mutuals_by_id.get(prof.id, ([], None))
             thinking_txt = hint_thinking.get(prof.id) or generated_rationales.get(prof.id, "")

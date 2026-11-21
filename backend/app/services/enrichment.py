@@ -547,9 +547,11 @@ class EnrichmentService:
                     resolved_sector = extracted.sector or profile.sector
                     resolved_location = extracted.location or profile.location
                     resolved_linkedin = extracted.linkedin_url or profile.linkedin_url
-                    resolved_photo = extracted.photo_url or profile.photo_url
+                    resolved_photo = profile.photo_url
                     if not resolved_photo and resolved_linkedin:
-                        resolved_photo = await fetch_og_image(resolved_linkedin, timeout_seconds=4.0)
+                        resolved_photo = await fetch_og_image(resolved_linkedin, timeout_seconds=8.0)
+                    if not resolved_photo:
+                        resolved_photo = extracted.photo_url
                     has_image_provider = isinstance(self.web_client, TavilyWebSearchClient) or (
                         getattr(self.web_client, "tavily_fallback", None) is not None
                         and not getattr(self.web_client, "disable_tavily_fallback", False)

@@ -151,15 +151,21 @@ async def fetch_og_image(
     if not url or not url.startswith(("http://", "https://")):
         return None
 
+    request_headers = (
+        {"User-Agent": "facebookexternalhit/1.1"}
+        if "linkedin.com" in url.lower()
+        else None
+    )
+
     async def _get(client: httpx.AsyncClient) -> Optional[str]:
         try:
-            resp = await client.get(url)
+            resp = await client.get(url, headers=request_headers)
         except Exception:
             return None
         final_url = str(resp.url).lower()
         if "authwall" in final_url or "/login" in final_url or "/checkpoint" in final_url:
             return None
-        if resp.status_code != 200 or _is_challenge_page(resp.status_code, resp.text):
+        if resp.status_code != 200:
             return None
         parser = _OgImageParser()
         try:
@@ -170,6 +176,38 @@ async def fetch_og_image(
         for candidate in (parser.og_image, parser.twitter_image):
             if is_valid_profile_photo_url(candidate):
                 return candidate
+
+        if "linkedin.com" in url.lower():
+            from app.config import get_settings
+
+            li_at = get_settings().linkedin_li_at
+            if li_at:
+                try:
+                    auth_headers = {**_DEFAULT_HEADERS, "Cookie": f"li_at={li_at.strip()}"}
+                    auth_resp = await client.get(url, headers=auth_headers)
+                    auth_url = str(auth_resp.url).lower()
+                    if (
+                        auth_resp.status_code == 200
+                        and "authwall" not in auth_url
+                        and "/login" not in auth_url
+                        and "/checkpoint" not in auth_url
+                    ):
+                        auth_parser = _OgImageParser()
+                        auth_parser.feed(auth_resp.text[:150_000])
+                        auth_parser.close()
+                        for cand in (auth_parser.og_image, auth_parser.twitter_image):
+                            if is_valid_profile_photo_url(cand):
+                                return cand
+                        m = re.search(
+                            r'https://media\.licdn\.com/dms/image/[^"\'\s<>]+profile-displayphoto[^"\'\s<>]+',
+                            auth_resp.text,
+                        )
+                        if m:
+                            cand = html.unescape(m.group(0))
+                            if is_valid_profile_photo_url(cand):
+                                return cand
+                except Exception:
+                    pass
         return None
 
     if http_client is not None:

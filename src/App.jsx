@@ -5,6 +5,7 @@ import StepIllustration from './StepIllustration.jsx'
 import LegalPage from './LegalPage.jsx'
 import DemoSheet from './DemoSheet.jsx'
 import WaitlistPage from './WaitlistPage.jsx'
+import LiveApp from './live/LiveApp.jsx'
 import { track } from './analytics.js'
 
 const isWaitlistPath = (pathname) => pathname === '/waitlist' || pathname === '/eleves'
@@ -98,6 +99,10 @@ export default function App() {
     }
   }
 
+  if (pathname.startsWith('/app')) {
+    return <LiveApp onNavigateHome={() => navigate('/')} />
+  }
+
   const onWaitlist = isWaitlistPath(pathname)
   const legalKind = pathname === '/confidentialite' ? 'privacy' : pathname === '/mentions-legales' ? 'legal' : null
 
@@ -125,6 +130,7 @@ export default function App() {
                 <a href="#demo">En action</a><a href="#comment">Fonctionnement</a><a href="#pour-qui">Pour qui</a><a href="#faq">FAQ</a>
               </>
             )}
+            <a href="/app" onClick={(e) => { e.preventDefault(); navigate('/app') }}>Démo live</a>
             <a
               href="/waitlist"
               className={onWaitlist ? 'nav-active' : undefined}
@@ -162,7 +168,9 @@ export default function App() {
               Un étudiant vise un stage dans l’énergie, mais ne connaît personne chez les entreprises qui l’intéressent. Il passe des heures sur LinkedIn à chercher qui contacter, puis envoie des candidatures à froid. Abelink repère les alumni pertinents et le chemin d’introduction.
             </motion.p>
             <motion.div className="actions" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-              <Cta placement="hero" /><button className="btn ghost" onClick={replayDemo}>Voir en action</button>
+              <Cta placement="hero" />
+              <button className="btn ghost" onClick={() => navigate('/app')}>Tester la démo complète</button>
+              <button className="btn ghost" onClick={replayDemo}>Voir en action</button>
             </motion.div>
             <motion.p className="hero-student-link" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.26 }}>
               Tu es étudiant ?{' '}

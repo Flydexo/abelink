@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { createApiToken, listApiTokens, revokeApiToken } from '../api.js'
 
-export default function IntegrationsTab({ activeUser }) {
+export default function IntegrationsTab({ activeUser, publicAccess = false }) {
   const [tokens, setTokens] = useState([])
   const [label, setLabel] = useState('Claude MCP / ChatGPT')
   const [createdToken, setCreatedToken] = useState(null)
@@ -27,8 +27,8 @@ export default function IntegrationsTab({ activeUser }) {
   }
 
   useEffect(() => {
-    refresh()
-  }, [activeUser?.id])
+    if (!publicAccess) refresh()
+  }, [activeUser?.id, publicAccess])
 
   async function handleCreate(e) {
     e.preventDefault()
@@ -66,9 +66,9 @@ export default function IntegrationsTab({ activeUser }) {
         abelink: {
           type: 'http',
           url: mcpUrl,
-          headers: {
+          ...(!publicAccess && { headers: {
             Authorization: `Bearer ${createdToken?.token || 'abk_votre_token'}`,
-          },
+          } }),
         },
       },
     },
@@ -81,11 +81,13 @@ export default function IntegrationsTab({ activeUser }) {
       <div className="app-panel-head">
         <h2>Connecter Claude (MCP) &amp; ChatGPT (Actions)</h2>
         <p className="muted">
-          Générez un jeton Bearer personnel lié à <strong>{activeUser?.full_name || 'l’étudiant actif'}</strong> pour interroger Abelink directement depuis Claude ou un GPT personnalisé.
+          {publicAccess
+            ? 'Accès public : utilisez les URL ci-dessous sans compte, sans jeton Bearer et sans en-tête Authorization. Par défaut, le contexte est le visiteur partagé ; user_email_or_id permet de choisir un profil.'
+            : <>Générez un jeton Bearer personnel lié à <strong>{activeUser?.full_name || 'l’étudiant actif'}</strong> pour interroger Abelink directement depuis Claude ou un GPT personnalisé.</>}
         </p>
       </div>
 
-      <form className="app-token-form" onSubmit={handleCreate}>
+      {!publicAccess && <form className="app-token-form" onSubmit={handleCreate}>
         <input
           value={label}
           onChange={(e) => setLabel(e.target.value)}
@@ -93,11 +95,11 @@ export default function IntegrationsTab({ activeUser }) {
           aria-label="Nom du token"
         />
         <button type="submit" className="btn primary">Générer un token Bearer</button>
-      </form>
+      </form>}
 
-      {error && <p className="form-error" role="alert">{error}</p>}
+      {!publicAccess && error && <p className="form-error" role="alert">{error}</p>}
 
-      {createdToken && (
+      {!publicAccess && createdToken && (
         <div className="app-token-reveal">
           <div>
             <strong>Token créé ({createdToken.label}) — copiez-le maintenant</strong>
@@ -132,7 +134,9 @@ export default function IntegrationsTab({ activeUser }) {
         <section className="app-subbox">
           <h3>ChatGPT — GPT Actions (OpenAPI 3.1)</h3>
           <p className="muted small">
-            Importez le schéma OpenAPI dans ChatGPT et choisissez l’authentification <strong>Bearer</strong> avec votre jeton personnel.
+            {publicAccess
+              ? 'Importez le schéma OpenAPI et choisissez Aucune authentification.'
+              : <>Importez le schéma OpenAPI dans ChatGPT et choisissez l’authentification <strong>Bearer</strong> avec votre jeton personnel.</>}
           </p>
           <div className="app-endpoint-box">
             <code>{openApiUrl}</code>
@@ -150,7 +154,7 @@ export default function IntegrationsTab({ activeUser }) {
         </section>
       </div>
 
-      <section className="app-subbox">
+      {!publicAccess && <section className="app-subbox">
         <div className="app-subbox-head">
           <h3>Tokens actifs</h3>
           {loading && <span className="muted small">Actualisation…</span>}
@@ -179,7 +183,7 @@ export default function IntegrationsTab({ activeUser }) {
             ))}
           </ul>
         )}
-      </section>
+      </section>}
     </div>
   )
 }

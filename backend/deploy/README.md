@@ -38,13 +38,13 @@ Git, a frontend `VITE_*` variable, or a Docker build argument.
 | `EMBEDDING_MODEL` | Yes | Embedding model verified as available with 768 output dimensions. |
 | `GOOGLE_APPLICATION_CREDENTIALS_JSON` | Yes for this Compose | Complete Google credential JSON, delivered as a Compose secret, not a container environment variable. |
 | `AUTH_SECRET` | Yes | Strong, random JWT secret dedicated to dev; it can be generated privately before configuration. |
-| `LINKCS_IMPORT_TOKEN` | Yes | Separate administration secret for `/app/import-linkcs` and `POST /api/v1/linkcs/import`; generate privately if missing. |
+| `LINKCS_IMPORT_TOKEN` | No in public dev | Unused with public access enabled; preserve any existing value for protected mode, where the import still requires this key. |
 | `TAVILY_API_KEY` | Optional | Tavily fallback credentials. |
 | `PREFER_FREE_SEARCH` | Defaults to `true` | DuckDuckGo first, Tavily fallback; `false` selects Tavily directly when its key exists. |
 | `LINKEDIN_LI_AT` | Optional, leave empty initially | Sensitive LinkedIn session cookie, used only by the photo-fetch fallback in the current code. |
 
 The Compose deliberately fixes `DEMO_MODE=false`, `ALLOW_DEMO_AUTH=false`,
-`EMBEDDING_DIM=768`, `CORS_ORIGINS=https://dev.abelink.app`, and
+`ALLOW_PUBLIC_ACCESS=true`, `EMBEDDING_DIM=768`, `CORS_ORIGINS=https://dev.abelink.app`, and
 `PUBLIC_API_URL=https://dev.abelink.app`. It disables the memory-mode SQLite
 cache. Missing database, project, model, or JWT settings refuse Compose
 interpolation rather than silently selecting demo defaults.
@@ -143,12 +143,14 @@ existing same-origin URLs, without a new `VITE_API_URL` build.
 2. A new database starts empty. A reviewed, authorized dataset and user profile
    must exist before search can work; do not seed personal or mock data by
    default. `LINKCS_DATA_PATH` is a memory-mode feature, not PostgreSQL seeding.
-3. The current frontend uses demo identity headers, not Bearer authentication.
-   With demo auth disabled, protected calls return 401. Resolve the login/token
-   bootstrap before claiming the full dev application works; do not silently
-   enable demo authentication on a public service.
-4. Some endpoints accept another requested user without an ownership check;
-   public exposure requires an authorization review, even with demo disabled.
+3. At the member's explicit request, dev fixes `ALLOW_PUBLIC_ACCESS=true` while
+   keeping demo mode/auth off. REST and MCP need no token. Startup creates a
+   shared visitor context even on an empty database; selecting another profile
+   is not authentication. Do not advertise per-user privacy or verified identity.
+4. Anyone with the URL can read profiles, import data and trigger paid provider
+   calls. There is no anonymous quota or visitor isolation. Use only data
+   intended for this shared environment and monitor provider usage. The default
+   outside this dev manifest stays `ALLOW_PUBLIC_ACCESS=false`.
 5. PostgreSQL does not persist `embedding_space`, although the ranking code uses
    it. Correct and test this before relying on Vertex ranking after reload.
 6. Python dependency versions use lower bounds, not a lockfile. Record the tested
@@ -185,8 +187,9 @@ blockers. Do not manually deploy the same push again. Verify, in order:
    `database.backend=postgres`, and `demo_mode=false`.
 3. `llm_backend=vertex` is necessary but not sufficient: verify an authorized,
    bounded real model/embedding call, since the application can fall back.
-4. Unauthenticated protected requests return 401, and an intended user can
-   authenticate without impersonating another profile.
+4. Public REST chat and MCP tool calls work without Authorization, LinkCS upload
+   works without an import key, and invalid/unconfirmed dumps remain rejected.
+   Protected deployments must still reject unauthenticated requests with 401.
 5. A reviewed small search returns grounded profiles and paths, and a streaming
    response reaches the client without being buffered into a static page.
 6. The dev frontend HTML/assets still work and production remains unaffected.
@@ -197,13 +200,13 @@ Google/Tavily connectivity, dataset quality, correct permissions, or user login.
 
 ## LinkCS upload and initial data
 
-The page `/app/import-linkcs` accepts an authorized administrator's JSON dump,
-using the `LINKCS_IMPORT_TOKEN` from this Compose's environment. It can import
-into an empty database without an existing student session. Do not disable
-authentication or create a public demo account to bootstrap the data.
+The page `/app/import-linkcs` accepts JSON dumps from any visitor in public dev,
+without a key or account, including on an empty database. The member explicitly
+authorized this shared access. Outside public mode, the dedicated
+`LINKCS_IMPORT_TOKEN` is still required; do not expose its stored value.
 
-The upload endpoint requires explicit confirmation and the dedicated header
-`X-LinkCS-Import-Token`. It is limited to 10 MiB, 5,000 objects and 100,000
+The upload endpoint requires explicit confirmation, and only in protected mode
+the header `X-LinkCS-Import-Token`. It is limited to 10 MiB, 5,000 objects and 100,000
 generated relations. Existing profiles and relations are preserved; stable
 LinkCS IDs and normalized LinkedIn URLs identify existing profiles. PostgreSQL
 inserts new profiles and relations in a single transaction. The graph reloads
@@ -211,5 +214,8 @@ after commit. No paid embeddings/enrichment or external search is performed.
 The raw dump is not retained or sent to analytics. Memory-mode imports are
 temporary and the page reports this explicitly.
 
-The key is not a JWT or a student login. After seeding, the separate
-authentication/authorization readiness requirements above still apply.
+In public mode, `/mcp` and `/mcp/` accept tool calls without a Bearer token.
+Use `user_email_or_id` to select a profile context, or omit it for the shared
+visitor. The frontend integrations tab provides token-free configuration and
+the public API omits personal-token management routes. Outside public mode,
+Bearer authentication and the separate import key remain unchanged.

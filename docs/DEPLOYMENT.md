@@ -535,3 +535,29 @@ runner will retry the corrected idempotent SQL on the next deployment.
 parser through the dev-only `pglast` dependency, verifies that the search vector
 reads the profile column rather than the database session role, and checks ORM
 quoting. These checks do not connect to or migrate the deployed database.
+
+### Explicitly requested public dev access
+
+The member subsequently requested that everyone can chat, upload LinkCS JSON
+and use MCP without authentication. The dev manifest now fixes
+`ALLOW_PUBLIC_ACCESS=true`, while keeping `DEMO_MODE=false` and
+`ALLOW_DEMO_AUTH=false`. The backend default remains protected
+(`allow_public_access=False`) outside this manifest; production is unchanged.
+
+Startup creates one shared `Visiteur public` profile if missing, without real
+personal details, mock alumni or provider calls. It supports chat on an empty
+database. `X-Profile-Id` on REST and `user_email_or_id` on MCP select context,
+not a verified identity. There is no per-visitor data isolation. Anonymous
+requests can inspect profiles, import shared data and spend provider credits.
+The member was warned of these consequences; no anonymous quota was added.
+
+Public LinkCS imports omit `X-LinkCS-Import-Token` but keep confirmation, JSON
+validation, size/relationship limits and additive transactions. Preserve any
+existing import key in Dokploy; it is unused publicly and still protects imports
+when public mode is disabled. Token management routes are omitted publicly.
+The frontend hides the key/token forms and provides a token-free MCP config.
+`/health` reports `public_access` for frontend behavior and verification.
+
+These are source changes, not a live setting change or deployment. A dev push
+must publish them before the public mode takes effect. Do not rotate secrets,
+delete database data, push or deploy merely to validate this change.

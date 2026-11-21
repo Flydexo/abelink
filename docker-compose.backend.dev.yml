@@ -36,9 +36,10 @@ services:
       PREFER_FREE_SEARCH: ${PREFER_FREE_SEARCH:-true}
       ENRICHMENT_CACHE_PATH: ""
       AUTH_SECRET: ${AUTH_SECRET:?A strong dev JWT signing secret is required}
-      LINKCS_IMPORT_TOKEN: ${LINKCS_IMPORT_TOKEN:?A dedicated LinkCS administration token is required}
+      LINKCS_IMPORT_TOKEN: ${LINKCS_IMPORT_TOKEN:-}
       CORS_ORIGINS: https://dev.abelink.app
       ALLOW_DEMO_AUTH: "false"
+      ALLOW_PUBLIC_ACCESS: "true"
       DEMO_MODE: "false"
       PUBLIC_API_URL: https://dev.abelink.app
       LINKEDIN_LI_AT: ${LINKEDIN_LI_AT:-}

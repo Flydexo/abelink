@@ -61,10 +61,18 @@ GitHub integration, secrets, or maintenance work.
   changing the env later does not rotate its SQL password. Never remove the
   volume or run `down -v`; backups, restores and SQL password changes require
   explicit authorization. Production and Dokploy's own database stay untouched.
-- `LINKCS_IMPORT_TOKEN` is also required by the dev Compose. Generate it privately
-  if missing, preserve any existing value, and save it in the same Dokploy `env`.
-  It protects the LinkCS upload page and bootstrap endpoint independently of
-  student authentication. Never ship its value in frontend assets or analytics.
+- The member explicitly requested public dev access: the dev Compose sets
+  `ALLOW_PUBLIC_ACCESS=true`, leaving `DEMO_MODE=false` and `ALLOW_DEMO_AUTH=false`.
+  Chat, search, profiles, LinkCS imports and MCP require no authentication there.
+  A shared `Visiteur public` context is created at startup, even on an empty DB;
+  a selected profile is context only, never a verified identity or private account.
+  Token management routes are omitted in this mode. Public imports still require
+  consent and enforce upload limits. Anonymous requests can spend provider credits.
+- `LINKCS_IMPORT_TOKEN` is optional and unused in public mode; preserve any stored
+  value for a future protected deployment. It is still required to import when
+  `ALLOW_PUBLIC_ACCESS=false`, the default outside the dev manifest. Never ship
+  its value in frontend assets or analytics. Do not enable public access in
+  production without a separate request.
 - Optional inputs: `GOOGLE_CLOUD_LOCATION` (default `global`),
   `TAVILY_API_KEY`, `PREFER_FREE_SEARCH` (default `true`), and `LINKEDIN_LI_AT`
   (leave empty initially; only the photo fallback needs it).
@@ -82,7 +90,7 @@ GitHub integration, secrets, or maintenance work.
   when `docker compose config` passes. Preserve the non-root user, dropped
   capabilities and no-new-privileges; do not move credentials into the image
   or container environment to bypass the error.
-- `DEMO_MODE`, `ALLOW_DEMO_AUTH`, `EMBEDDING_DIM`, CORS, public API URL, and cache
+- `DEMO_MODE`, `ALLOW_DEMO_AUTH`, `ALLOW_PUBLIC_ACCESS`, `EMBEDDING_DIM`, CORS, public API URL, and cache
   settings are fixed by the dev service definition. Adding them to Dokploy's
   `env` does not override literal Compose settings. Do not enable public demo
   authentication to bypass missing login or data setup.

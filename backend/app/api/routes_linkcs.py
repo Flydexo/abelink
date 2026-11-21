@@ -4,8 +4,7 @@ import asyncio
 import json
 import secrets
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
-from fastapi.security import APIKeyHeader
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Request, UploadFile
 from sqlalchemy.exc import IntegrityError
 
 from app.db.repository import EdgeRecord, PostgresAlumniRepository
@@ -14,7 +13,6 @@ from app.services.linkcs_loader import load_linkcs_rows
 from app.services.linkedin_parser import normalize_linkedin_url
 
 router = APIRouter(prefix="/api/v1/linkcs", tags=["linkcs"])
-import_key_header = APIKeyHeader(name="X-LinkCS-Import-Token", auto_error=False)
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 MAX_RECORDS = 5000
 MAX_RELATIONSHIPS = 100_000
@@ -22,8 +20,10 @@ MAX_RELATIONSHIPS = 100_000
 
 async def require_import_key(
     request: Request,
-    provided_key: str | None = Depends(import_key_header),
+    provided_key: str | None = Header(default=None, alias="X-LinkCS-Import-Token"),
 ) -> None:
+    if request.app.state.container.settings.allow_public_access:
+        return
     expected_key = request.app.state.container.settings.linkcs_import_token
     if not expected_key:
         raise HTTPException(503, "Import LinkCS désactivé : configurez LINKCS_IMPORT_TOKEN sur le backend.")

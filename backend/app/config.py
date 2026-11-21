@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     auth_secret: str = "dev-secret-change-in-production"
     cors_origins: str = "http://localhost:5173,https://abelink.app,https://dev.abelink.app"
     allow_demo_auth: bool = True
+    allow_public_access: bool = False
     demo_mode: bool = False
     linkcs_data_path: Optional[str] = None
     linkedin_li_at: Optional[str] = None

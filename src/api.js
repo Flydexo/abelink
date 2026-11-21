@@ -3,6 +3,7 @@ const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
 function buildHeaders(userId, extra = {}) {
   const headers = { ...extra }
   if (userId) {
+    headers['X-Profile-Id'] = userId
     headers['X-Demo-User-Id'] = userId
   }
   return headers
@@ -169,7 +170,7 @@ export async function importLinkCSDump(file, importToken) {
   formData.append('confirmed', 'true')
   const res = await fetch(`${API_BASE}/api/v1/linkcs/import`, {
     method: 'POST',
-    headers: { 'X-LinkCS-Import-Token': importToken },
+    headers: importToken ? { 'X-LinkCS-Import-Token': importToken } : {},
     body: formData,
   })
   if (!res.ok) await parseError(res)

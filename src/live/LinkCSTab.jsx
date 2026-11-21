@@ -4,7 +4,7 @@ import { importLinkCSDump } from '../api.js'
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 const MAX_RECORDS = 5000
 
-export default function LinkCSTab({ onImported }) {
+export default function LinkCSTab({ onImported, publicAccess = false }) {
   const [file, setFile] = useState(null)
   const [recordCount, setRecordCount] = useState(0)
   const [importToken, setImportToken] = useState('')
@@ -57,12 +57,12 @@ export default function LinkCSTab({ onImported }) {
 
   async function handleSubmit(event) {
     event.preventDefault()
-    if (!file || !confirmed || !importToken.trim() || busy) return
+    if (!file || !confirmed || (!publicAccess && !importToken.trim()) || busy) return
     setSubmitting(true)
     setError('')
     setSummary(null)
     try {
-      const result = await importLinkCSDump(file, importToken.trim())
+      const result = await importLinkCSDump(file, publicAccess ? null : importToken.trim())
       setSummary(result)
       setImportToken('')
       setConfirmed(false)
@@ -130,6 +130,10 @@ export default function LinkCSTab({ onImported }) {
         </div>
 
         <div className="app-form-fields">
+          {publicAccess ? (
+            <p className="muted small">Import ouvert à tous, sans compte ni clé. Les données ajoutées sont partagées avec tous les visiteurs.</p>
+          ) : (
+            <>
           <label htmlFor="linkcs-import-token">
             Clé d’administration LinkCS
             <input
@@ -148,6 +152,8 @@ export default function LinkCSTab({ onImported }) {
             Elle reste en mémoire dans cette page et n’est pas enregistrée dans le navigateur.
             Cet accès permet aussi d’initialiser une base vide, sans connexion étudiante.
           </p>
+            </>
+          )}
           <label className="app-import-consent">
             <input type="checkbox" checked={confirmed} disabled={busy} onChange={(event) => setConfirmed(event.target.checked)} required />
             <span>Je suis autorisé à importer ces données personnelles dans ce réseau.</span>
@@ -157,7 +163,7 @@ export default function LinkCSTab({ onImported }) {
             Le fichier brut n’est pas conservé après le traitement et n’est pas transmis aux analytics.
           </p>
           {error && <p className="form-error" role="alert">{error}</p>}
-          <button className="btn primary" type="submit" disabled={busy || !file || !confirmed || !importToken.trim()}>
+          <button className="btn primary" type="submit" disabled={busy || !file || !confirmed || (!publicAccess && !importToken.trim())}>
             {submitting ? 'Import et mise à jour du graphe…' : 'Importer dans le réseau'}
           </button>
         </div>

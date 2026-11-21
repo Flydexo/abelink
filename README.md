@@ -63,7 +63,7 @@ le remplir avec des secrets.
 | `EMBEDDING_MODEL` | Obligatoire : modèle acceptant une sortie de 768 dimensions. |
 | `GOOGLE_APPLICATION_CREDENTIALS_JSON` | Obligatoire pour ce Compose : JSON complet des credentials Google, compact, entre apostrophes dans le document dotenv, avec les échappements JSON conservés. |
 | `AUTH_SECRET` | Obligatoire : secret JWT aléatoire propre au dev ; à générer en privé si absent, sans remplacer un secret existant. |
-| `LINKCS_IMPORT_TOKEN` | Obligatoire pour la stack dev : clé d’administration dédiée à l’upload LinkCS, à générer en privé si absente. |
+| `LINKCS_IMPORT_TOKEN` | Facultative en dev public, où elle n’est pas utilisée ; à conserver pour un futur mode protégé. |
 | `TAVILY_API_KEY` | Facultative : clé Tavily pour le recours à la recherche payante. |
 | `PREFER_FREE_SEARCH` | `true` par défaut : recherche gratuite avant Tavily. |
 | `LINKEDIN_LI_AT` | Facultative : laisser vide ; le cookie ne sert que de recours pour certaines photos, pas à la recherche générale. |
@@ -82,7 +82,7 @@ est transmis par un secret Compose, injecté sous `/run/secrets/google-adc.json`
 remplace pas le contenu JSON à fournir dans Dokploy.
 
 Les valeurs suivantes sont fixées dans le Compose, et non à fournir à nouveau :
-`DEMO_MODE=false`, `ALLOW_DEMO_AUTH=false`, `EMBEDDING_DIM=768`,
+`DEMO_MODE=false`, `ALLOW_DEMO_AUTH=false`, `ALLOW_PUBLIC_ACCESS=true`, `EMBEDDING_DIM=768`,
 `CORS_ORIGINS=https://dev.abelink.app`, `PUBLIC_API_URL=https://dev.abelink.app`
 et `ENRICHMENT_CACHE_PATH` vide. Les ajouter au champ `env` ne remplace pas les
 valeurs littérales du Compose.
@@ -104,8 +104,8 @@ valeurs littérales du Compose.
 
 Le routage proposé réutilise `dev.abelink.app` pour `/api`, `/health`, `/mcp`
 et `/openapi.json`, sans publier le port 8000. La procédure complète et les
-blocages avant exposition publique sont dans le guide backend : authentification
-du frontend, autorisations, données initiales et cohérence des embeddings.
+limites du mode public sont dans le guide backend : données partagées, coûts
+des fournisseurs, données initiales et cohérence des embeddings.
 Sauvegarder les variables ne lance pas le déploiement. Une fois les variables
 requises enregistrées, un push sur `dev` déclenche automatiquement la stack
 complète ; `main` conserve `./docker-compose.yml`, sans backend. Les agents ne
@@ -116,9 +116,8 @@ doivent ni pousser ni lancer un déploiement manuel sans demande correspondante.
 Ouvrir `/app/import-linkcs` ou l’onglet **Import LinkCS** de l’application :
 
 1. Sélectionner ou déposer un fichier `.json` contenant une liste d’objets LinkCS.
-2. Saisir la clé `LINKCS_IMPORT_TOKEN` du Compose dev dans Dokploy. Ne pas la
-   partager dans le chat ou l’ajouter au frontend ; elle n’est pas persistée
-   dans le navigateur par l’application.
+2. En dev public, aucune clé ni connexion n’est demandée. En mode protégé
+   uniquement, saisir `LINKCS_IMPORT_TOKEN`, sans la partager dans le chat.
 3. Confirmer que vous êtes autorisé à importer ces données, puis lancer l’import.
 
 Le backend accepte jusqu’à 10 Mio, 5 000 entrées et 100 000 relations. Les champs
@@ -131,9 +130,26 @@ PostgreSQL applique l’import dans une transaction ; le mode mémoire est
 explicitement signalé, car ses données sont perdues au redémarrage.
 
 L’API est `POST /api/v1/linkcs/import`, multipart avec `file`, `confirmed=true`
-et l’en-tête `X-LinkCS-Import-Token`. Cette clé permet d’amorcer une base vide
-sans identité étudiante ; elle ne remplace pas une session utilisateur pour
-les recherches. Sans clé configurée, l’endpoint refuse les imports.
+et, uniquement en mode protégé, l’en-tête `X-LinkCS-Import-Token`.
+
+## Accès public en dev
+
+À la demande du propriétaire, le Compose dev active `ALLOW_PUBLIC_ACCESS=true` :
+chat, recherche, annuaire, import LinkCS et MCP sont accessibles sans compte,
+cookie ni Bearer token. Un profil `Visiteur public` partagé est créé au démarrage
+pour que le chat fonctionne aussi sur une base vide. Choisir un autre profil
+change le contexte de recherche, pas une identité authentifiée. Sans relations
+réelles dans le graphe, aucun chemin personnel ne peut être garanti.
+
+Le MCP est disponible sur `/mcp` sans en-tête `Authorization` ; l’onglet
+Claude & ChatGPT fournit la configuration sans token. Les routes de gestion
+des tokens personnels ne sont pas exposées en mode public.
+
+**Toute personne connaissant l’URL peut consulter et modifier les données via
+les imports et déclencher des appels IA/recherche facturés au propriétaire.**
+Il n’y a pas d’isolation privée par visiteur ni de quota anonyme ajouté ici.
+Ne pas importer de données confidentielles. Hors du Compose dev, le mode public
+reste désactivé par défaut ; la production n’est pas modifiée.
 
 ## Pages légales
 

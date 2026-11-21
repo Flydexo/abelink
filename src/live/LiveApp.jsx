@@ -199,6 +199,11 @@ export default function LiveApp({ onNavigateHome, onNavigate, pathname = '/app' 
       </header>
 
       <main className={`app-main${tab === 'chat' ? ' app-main-chat' : ''}`}>
+        {health?.public_access && (
+          <p className="muted small" role="status">
+            Accès public sans connexion : données et profil visiteur partagés. Le profil sélectionné sert de contexte, pas d’identité privée.
+          </p>
+        )}
         {backendError && (
           <div className="app-offline-banner" role="alert">
             <div>
@@ -231,8 +236,8 @@ export default function LiveApp({ onNavigateHome, onNavigate, pathname = '/app' 
           />
         )}
 
-        {tab === 'integrations' && <IntegrationsTab activeUser={activeUser} />}
-        {tab === 'linkcs' && <LinkCSTab onImported={() => loadHealthAndMe(activeUserId)} />}
+        {tab === 'integrations' && <IntegrationsTab activeUser={activeUser} publicAccess={health?.public_access === true} />}
+        {tab === 'linkcs' && <LinkCSTab publicAccess={health?.public_access === true} onImported={() => loadHealthAndMe(activeUserId)} />}
       </main>
 
       <ProfileDrawer

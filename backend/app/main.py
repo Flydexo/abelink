@@ -19,10 +19,10 @@ from app.api.routes_linkcs import router as linkcs_router
 from app.api.routes_profiles import router as profiles_router
 from app.api.routes_search import router as search_router
 from app.api.routes_tokens import router as tokens_router
-from app.auth import MCPBearerMiddleware
+from app.auth import MCPBearerMiddleware, PUBLIC_VISITOR_ID
 from app.config import Settings, get_settings
 from app.db.enrichment_cache import EnrichmentCache
-from app.db.repository import AbstractAlumniRepository, InMemoryAlumniRepository, PostgresAlumniRepository
+from app.db.repository import AbstractAlumniRepository, InMemoryAlumniRepository, PostgresAlumniRepository, ProfileRecord
 from app.db.session import create_db_engine, create_session_factory, run_sql_migrations
 from app.services.chat_agent import ChatAgentService
 from app.services.enrichment import (
@@ -156,6 +156,12 @@ def create_app(
                     in_mem.apply_cached_enrichment(cache)
                 repo = in_mem
 
+        if cfg.allow_public_access and await repo.get_profile(PUBLIC_VISITOR_ID) is None:
+            await repo.upsert_profile(ProfileRecord(
+                id=PUBLIC_VISITOR_ID, full_name="Visiteur public", is_student=True,
+                enrichment_source="PUBLIC_VISITOR",
+            ))
+
         llm = llm_service or _build_default_llm(cfg)
         web = web_client or _build_default_web_client(cfg)
         engine = graph_engine or GraphEngine()
@@ -229,7 +235,8 @@ def create_app(
     app.include_router(search_router)
     app.include_router(chat_router)
     app.include_router(profiles_router)
-    app.include_router(tokens_router)
+    if not cfg.allow_public_access:
+        app.include_router(tokens_router)
 
     # Route both /mcp and /mcp/ directly to avoid 307 redirects on POST Streamable HTTP
     app.router.routes.append(Route("/mcp", endpoint=mcp_asgi_app, include_in_schema=False))

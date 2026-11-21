@@ -8,9 +8,10 @@ export const scenarios = [
     chips: ['TotalEnergies', 'EDF', 'Engie', 'Schneider Electric', 'Qair'],
     alumni: '37 alumni travaillent dans ces entreprises',
     exp: '5 ont déjà accueilli un stagiaire en césure',
-    final: 'J’ai trouvé 3 chemins. Voici le plus court : 3 liens jusqu’à Julien Morel, qui a déjà pris deux étudiants en césure.',
+    final: 'Voici 3 contacts à explorer pour votre projet. Commencez par Hugo : votre lien commun est un bon point de départ pour demander une introduction.',
     target: {
       name: 'Julien Morel',
+      context: 'Responsable développement chez Engie, il a déjà encadré deux étudiants en césure dans l’énergie.',
       meta: 'Responsable développement · Engie · Promo 2014',
       shortMeta: 'Engie · Promo 2014',
     },
@@ -29,7 +30,7 @@ export const scenarios = [
       ['Sous 7 jours', 'Léa vous introduit auprès de Julien : proposez 20 minutes pour parler de la césure.'],
     ],
     message:
-      'Bonjour Hugo, je suis en 2A et membre du club Énergie comme vous. Je cherche un stage de césure dans l’énergie. Accepteriez-vous de me mettre en relation avec Léa Benoit ? Merci beaucoup !',
+      'Bonjour Hugo, je suis en 2A et membre du club Énergie comme vous. Je cherche un stage de césure dans une boîte qui travaille dans l’énergie. Accepteriez-vous de me mettre en relation avec Léa Benoit ? Merci beaucoup !',
   },
   {
     query: 'Je veux échanger avec un product manager dans la santé',
@@ -39,9 +40,10 @@ export const scenarios = [
     chips: ['Doctolib', 'Alan', 'Qare', 'Withings'],
     alumni: '22 alumni travaillent dans ces entreprises',
     exp: '4 ont suivi le même parcours que vous',
-    final: 'J’ai trouvé 3 chemins. Voici le plus court : 3 liens jusqu’à Claire Fontaine.',
+    final: 'Voici 3 contacts à explorer pour votre projet. Commencez par Hugo : votre lien commun est un bon point de départ pour demander une introduction.',
     target: {
       name: 'Claire Fontaine',
+      context: 'Product Manager chez Doctolib, elle peut vous éclairer sur le métier dans la santé. Léa a travaillé avec elle chez Alan.',
       meta: 'Product Manager · Doctolib · Promo 2016',
       shortMeta: 'Doctolib · Promo 2016',
     },
@@ -70,9 +72,10 @@ export const scenarios = [
     chips: ['BNP Paribas', 'Société Générale', 'Natixis', 'Amundi'],
     alumni: '29 alumni travaillent dans ces entreprises',
     exp: '6 occupent ou ont occupé un poste de quant',
-    final: 'J’ai trouvé 3 chemins. Voici le plus court : 3 liens jusqu’à Sofia Lambert.',
+    final: 'Voici 3 contacts à explorer pour votre projet. Commencez par Maxime : votre lien commun est un bon point de départ pour demander une introduction.',
     target: {
       name: 'Sofia Lambert',
+      context: 'Quantitative Analyst, elle peut vous parler du métier de quant en banque. Élise est une ancienne camarade de promotion.',
       meta: 'Quantitative Analyst · Promo 2015',
       shortMeta: 'BNP Paribas · Promo 2015',
     },
@@ -101,9 +104,10 @@ export const scenarios = [
     chips: ['Qonto', 'Lydia', 'Swile', 'Alan'],
     alumni: '18 alumni ont fondé ou rejoint une fintech',
     exp: '3 ont levé des fonds et accompagnent des étudiants',
-    final: 'J’ai trouvé 3 chemins. Voici le plus court : 3 liens jusqu’à Thomas Aubry.',
+    final: 'Voici 3 contacts à explorer pour votre projet. Commencez par Anaïs : votre lien commun est un bon point de départ pour demander une introduction.',
     target: {
       name: 'Thomas Aubry',
+      context: 'Cofondateur d’une fintech, il peut partager son expérience entrepreneuriale. Romain peut vous le présenter.',
       meta: 'Cofondateur · Fintech · Promo 2012',
       shortMeta: 'Fintech · Promo 2012',
     },

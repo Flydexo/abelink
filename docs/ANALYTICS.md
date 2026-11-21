@@ -30,7 +30,7 @@ small, stable, and free of user-entered content.
 | Event | When | Properties |
 | --- | --- | --- |
 | `$pageview` | Once on page load | PostHog's standard page context |
-| `demo_request_opened` | A demo request dialog opens | `placement`: `navigation`, `hero`, or `footer_cta` |
+| `demo_request_opened` | A demo request dialog opens | `placement`: `navigation`, `hero`, `audiences`, or `footer_cta` |
 | `demo_request_submitted` | FormSubmit confirms the request | None |
 | `demo_request_failed` | FormSubmit request fails | None |
 | `interactive_demo_search_submitted` | Search starts in the interactive demo | `source`: `manual_search`, `suggestion`, `autoplay`, or `replay` |

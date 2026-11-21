@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'motion/react'
 import Demo from './Demo.jsx'
+import StepIllustration from './StepIllustration.jsx'
+import LegalPage from './LegalPage.jsx'
 import DemoSheet from './DemoSheet.jsx'
 import WaitlistPage from './WaitlistPage.jsx'
 import { track } from './analytics.js'
@@ -97,6 +99,7 @@ export default function App() {
   }
 
   const onWaitlist = isWaitlistPath(pathname)
+  const legalKind = pathname === '/confidentialite' ? 'privacy' : pathname === '/mentions-legales' ? 'legal' : null
 
   const openDemo = (placement = 'unknown') => {
     track('demo_request_opened', { placement })
@@ -115,7 +118,7 @@ export default function App() {
         <div className="nav-in">
           <Logo onNavigate={navigate} />
           <nav aria-label="Principal">
-            {onWaitlist ? (
+            {onWaitlist || legalKind ? (
               <a href="/" onClick={(e) => { e.preventDefault(); navigate('/') }}>Accueil</a>
             ) : (
               <>
@@ -144,7 +147,9 @@ export default function App() {
         </div>
       </header>
 
-      {onWaitlist ? (
+      {legalKind ? (
+        <LegalPage kind={legalKind} onNavigate={navigate} />
+      ) : onWaitlist ? (
         <WaitlistPage onNavigateHome={() => navigate('/')} />
       ) : (
       <main>
@@ -178,34 +183,50 @@ export default function App() {
         <Demo replay={demoReplay} />
 
         <section className="section problem">
-          <div className="wrap">
-            <Reveal><h2>Un étudiant cherche un stage. Qui peut le mettre en relation&nbsp;?</h2></Reveal>
-            <Reveal><p className="lead">Pour les responsables d’associations alumni, la situation est familière : un étudiant de l’école cherche un stage de césure dans l’énergie, mais ne sait pas quel ancien contacter chez Engie ou EDF. Il passe ses soirées à parcourir LinkedIn, hésite à écrire à des inconnus et risque de laisser passer des pistes faute d’introduction.</p></Reveal>
-            <div className="cards problem-quotes">
-              <Reveal className="card"><p>« Je cherche un stage dans l’énergie : quel alumni peut me conseiller ? »</p></Reveal>
-              <Reveal className="card" delay={0.08}><p>« J’ai passé des heures sur LinkedIn sans trouver à qui écrire. »</p></Reveal>
-            </div>
-            <Reveal><p>Abelink transforme les parcours de votre réseau en pistes concrètes : les bons alumni, les liens qui vous rapprochent et une demande d’introduction à envoyer.</p></Reveal>
+          <div className="wrap problem-layout">
+            <Reveal className="problem-copy">
+              <span className="section-kicker">Le bon contact change tout</span>
+              <h2>Un étudiant cherche un stage.<br /><span>Qui peut le mettre en relation ?</span></h2>
+              <p>Il sait où il veut aller. Pas encore à qui écrire. Entre les profils LinkedIn et l’annuaire de l’école, le bon contact reste souvent invisible.</p>
+              <p>Abelink fait le lien entre son projet, les alumni pertinents et les personnes qui peuvent les présenter.</p>
+              <a className="text-link" href="#demo">Voir le chemin avec Abelink <span aria-hidden="true">↗</span></a>
+            </Reveal>
+            <Reveal className="connection-story" delay={0.12}>
+              <span className="story-label">De « je ne connais personne » à…</span>
+              <div className="story-request">« Je cherche un stage de césure dans l’énergie. »</div>
+              <ol className="story-path" aria-label="Exemple fictif de mise en relation">
+                <li><span className="story-avatar">V</span><div><strong>Vous</strong><span>Un projet, mais pas de contact</span></div></li>
+                <li><span className="story-avatar connector">HM</span><div><strong>Hugo, votre premier lien</strong><span>Le même club Énergie que vous</span></div><span className="story-tag">En commun</span></li>
+                <li><span className="story-avatar destination">JM</span><div><strong>Julien, chez Engie</strong><span>Un alumni à qui parler de votre césure</span></div></li>
+              </ol>
+              <div className="story-outcome"><span aria-hidden="true">↳</span> Une introduction plutôt qu’une candidature à froid.</div>
+              <span className="story-footnote">Exemple illustratif · chemin simplifié</span>
+            </Reveal>
           </div>
         </section>
 
-        <section id="comment" className="section">
+        <section id="comment" className="section how-section">
           <div className="wrap">
-            <Reveal><h2>Trois étapes. Un chemin clair.</h2></Reveal>
-            <div className="steps">
-              {STEPS.map(([t, d], i) => (
-                <Reveal key={t} className="step" delay={i * 0.08}><h3>{t}</h3><p>{d}</p></Reveal>
+            <Reveal className="section-heading"><span className="section-kicker">Simple, du début à la rencontre</span><h2>Trois étapes.<br />Un chemin clair.</h2><p>Pas besoin de savoir qui chercher.<br />Commencez par ce que vous voulez faire.</p></Reveal>
+            <div className="steps illustrated-steps">
+              {STEPS.map(([title, description], index) => (
+                <Reveal key={title} className="step" delay={index * 0.08}>
+                  <StepIllustration step={index} />
+                  <span className="step-index">0{index + 1}</span><h3>{title}</h3><p>{description}</p>
+                </Reveal>
               ))}
             </div>
           </div>
         </section>
 
-        <section id="pour-qui" className="section tint">
-          <div className="wrap">
-            <Reveal><h2>Un réseau. Trois façons d’en tirer parti.</h2></Reveal>
-            <div className="cards">
-              {AUDIENCES.map(([h, d], i) => (
-                <Reveal key={h} className="card" delay={i * 0.08}><h3>{h}</h3><p>{d}</p></Reveal>
+        <section id="pour-qui" className="section audience-section">
+          <div className="wrap audience-layout">
+            <Reveal className="audience-intro"><span className="section-kicker">À chaque membre, son déclic</span><h2>Un réseau.<br />Trois façons<br />d’en tirer parti.</h2><p>De la première recherche à la mise en relation, chaque rôle fait vivre le réseau.</p><button className="text-link" onClick={() => openDemo('audiences')}>Parlons de votre réseau <span aria-hidden="true">↗</span></button></Reveal>
+            <div className="audience-list">
+              {AUDIENCES.map(([title, description], index) => (
+                <Reveal key={title} className="audience-row" delay={index * 0.08}>
+                  <span className="audience-number">0{index + 1}</span><div><span className="audience-role">{['Associations alumni', 'Étudiants & membres', 'Anciens & mentors'][index]}</span><h3>{title}</h3><p>{description}</p></div>
+                </Reveal>
               ))}
             </div>
           </div>
@@ -242,7 +263,7 @@ export default function App() {
               Waitlist élèves (1 €)
             </a>
             {' · '}
-            <a href="#top">Confidentialité</a> · <a href="#top">Mentions légales</a>
+            <a href="/confidentialite" onClick={(event) => { if (!event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); navigate('/confidentialite') } }}>Confidentialité</a> · <a href="/mentions-legales" onClick={(event) => { if (!event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); navigate('/mentions-legales') } }}>Mentions légales</a>
           </span>
         </div>
       </footer>

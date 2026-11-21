@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, animate, useInView } from 'motion/react'
 import { scenarios, match, initials } from './data.js'
+import { track } from './analytics.js'
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const STEP_MS = [800, 1800, 1200, 1300, 900]
@@ -168,12 +169,13 @@ export default function Demo({ replay = 0 }) {
         setQuery(text.slice(0, i))
       }
       await sleep(400); if (runId.current !== id) return
-      start(text, id)
+      start(text, id, 'replay')
     })()
   }, [replay])
 
-  async function start(q, id = ++runId.current) {
+  async function start(q, id = ++runId.current, source = 'manual_search') {
     if (!q.trim()) return
+    track('interactive_demo_search_submitted', { source })
     const alive = () => runId.current === id
     const { scenario: s, exact } = match(q)
     const set = (p) => setRun((r) => ({ ...r, ...p }))
@@ -190,6 +192,7 @@ export default function Demo({ replay = 0 }) {
     set({ final: true })
     await sleep(1500); if (!alive()) return
     set({ result: true })
+    track('interactive_demo_result_viewed', { source })
   }
 
   // Au premier affichage : saisie automatique du premier exemple, sauf si l'utilisateur prend la main.
@@ -203,12 +206,12 @@ export default function Demo({ replay = 0 }) {
         setQuery(text.slice(0, i))
       }
       await sleep(400); if (runId.current !== id) return
-      start(text, id)
+      start(text, id, 'autoplay')
     })()
   }, [inView])
 
   const take = () => { touched.current = true; runId.current++ }
-  const submit = (q) => { touched.current = true; setQuery(q); start(q) }
+  const submit = (q, source = 'manual_search') => { touched.current = true; setQuery(q); start(q, undefined, source) }
 
   return (
     <section id="demo" className="section demo" ref={ref}>
@@ -229,7 +232,7 @@ export default function Demo({ replay = 0 }) {
         </form>
         <div className="chips">
           {SUGGESTIONS.map((c) => (
-            <button key={c} type="button" className="chip" onClick={() => submit(c)}>{c}</button>
+            <button key={c} type="button" className="chip" onClick={() => submit(c, 'suggestion')}>{c}</button>
           ))}
         </div>
 

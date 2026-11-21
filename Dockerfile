@@ -1,5 +1,7 @@
 FROM node:24-alpine AS build
 WORKDIR /app
+ARG VITE_POSTHOG_KEY
+ENV VITE_POSTHOG_KEY=$VITE_POSTHOG_KEY
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .

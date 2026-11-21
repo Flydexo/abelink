@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
+import { track } from './analytics.js'
 
 // Pas de backend : FormSubmit (service tiers) transmet la demande par email.
 // Le tout premier envoi déclenche un email d'activation à cette adresse.
@@ -22,8 +23,10 @@ export default function DemoSheet({ open, onClose }) {
       const j = await r.json()
       if (!r.ok || String(j.success) !== 'true') throw new Error(j.message)
       setSent(true)
+      track('demo_request_submitted')
     } catch {
       setState('error')
+      track('demo_request_failed')
     }
   }
 

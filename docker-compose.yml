@@ -1,6 +1,9 @@
 services:
   web:
-    build: .
+    build:
+      context: .
+      args:
+        VITE_POSTHOG_KEY: ${VITE_POSTHOG_KEY:-}
     restart: unless-stopped
     expose:
       - "80"

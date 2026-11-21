@@ -91,6 +91,11 @@ p { margin: 0; }
 blockquote { margin: 0 0 1rem; padding: 1rem 1.1rem; background: var(--tint); border-radius: 14px; font-size: .92rem; line-height: 1.5; }
 
 .steps, .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+.problem { background: var(--tint); text-align: center; }
+.problem .lead { margin: -1rem auto 2rem; }
+.problem-quotes { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 800px; margin: 0 auto 2rem; }
+.problem-quotes .card p { color: var(--text); font-size: 1.2rem; font-weight: 600; }
+.problem > .wrap > .motion-div:last-child { max-width: 48rem; margin-inline: auto; color: var(--muted); }
 .step h3 { margin: .5rem 0 .6rem; } .step p, .card p { color: var(--muted); }
 .card { background: var(--surface); border-radius: var(--radius); padding: 2rem; display: grid; gap: .8rem; align-content: start; box-shadow: 0 0 0 1px rgba(0,0,0,.05); transition: transform .3s, box-shadow .3s; }
 .card:nth-child(1) { border-top: 4px solid var(--accent); } .card:nth-child(2) { border-top: 4px solid var(--coral); } .card:nth-child(3) { border-top: 4px solid var(--sun); }

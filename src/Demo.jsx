@@ -144,7 +144,7 @@ function Result({ s }) {
   )
 }
 
-export default function Demo() {
+export default function Demo({ replay = 0 }) {
   const ref = useRef(null)
   const inView = useInView(ref, { once: true, margin: '-25% 0px' })
   const [query, setQuery] = useState('')
@@ -153,6 +153,24 @@ export default function Demo() {
   const touched = useRef(false)
 
   useEffect(() => () => { runId.current++ }, [])
+
+  useEffect(() => {
+    if (!replay) return
+    touched.current = false
+    runId.current++
+    setRun(null)
+    setQuery('')
+    const id = runId.current
+    const text = scenarios[0].query
+    ;(async () => {
+      for (let i = 1; i <= text.length; i++) {
+        await sleep(28); if (runId.current !== id) return
+        setQuery(text.slice(0, i))
+      }
+      await sleep(400); if (runId.current !== id) return
+      start(text, id)
+    })()
+  }, [replay])
 
   async function start(q, id = ++runId.current) {
     if (!q.trim()) return

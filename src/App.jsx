@@ -21,9 +21,9 @@ const STEPS = [
 ]
 
 const AUDIENCES = [
-  ['Ouvrez la bonne porte.', 'Étudiants, ne cherchez plus un nom au hasard : trouvez qui, dans le réseau, peut réellement vous présenter à la personne qui vous intéresse.'],
-  ['Valorisez votre réseau.', 'Alumni, faites de vos liens un levier concret : aidez les étudiants qui vous ressemblent, en quelques minutes et à votre rythme.'],
-  ['Provoquez la chance de vos étudiants.', 'Associations, offrez à chaque étudiant l’accès au réseau, pas seulement à ceux qui savent déjà à qui écrire.'],
+  ['Rendez votre réseau actionnable.', 'Donnez aux étudiants de votre association une méthode claire pour trouver les bons contacts et activer les liens alumni de façon pertinente.'],
+  ['Accompagnez chaque démarche.', 'Abelink aide vos membres à formuler leur objectif, repérer les bons chemins et préparer une demande d’introduction.'],
+  ['Valorisez l’engagement de vos alumni.', 'Facilitez des mises en relation utiles, à leur rythme et avec leur accord, tout en renforçant la valeur de votre association.'],
 ]
 
 const FAQ = [
@@ -53,7 +53,12 @@ function Faq() {
 
 export default function App() {
   const [demo, setDemo] = useState(false)
+  const [demoReplay, setDemoReplay] = useState(0)
   const openDemo = () => setDemo(true)
+  const replayDemo = () => {
+    setDemoReplay((value) => value + 1)
+    document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' })
+  }
   const Cta = () => <button className="btn primary" onClick={openDemo}>Demander une démo</button>
 
   return (
@@ -72,18 +77,30 @@ export default function App() {
         <section className="hero">
           <div className="wrap">
             <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-              Exploitez votre réseau<br />à son <span className="mark">plein potentiel.</span>
+              Exploitez votre réseau Alumni<br />à son <span className="mark">plein potentiel.</span>
             </motion.h1>
             <motion.p className="lead" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}>
-              Décrivez ce que vous cherchez. Abelink explore LinkedIn et votre réseau alumni, puis vous montre le chemin le plus court vers la bonne personne.
+              Responsables d’associations alumni, donnez à vos étudiants les moyens d’activer votre réseau : Abelink identifie les contacts pertinents et les chemins d’introduction possibles.
             </motion.p>
             <motion.div className="actions" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-              <Cta /><a className="btn ghost" href="#demo">Voir en action</a>
+              <Cta /><button className="btn ghost" onClick={replayDemo}>Voir en action</button>
             </motion.div>
           </div>
         </section>
 
-        <Demo />
+        <Demo replay={demoReplay} />
+
+        <section className="section problem">
+          <div className="wrap">
+            <Reveal><h2>Un réseau immense. Mais par où commencer&nbsp;?</h2></Reveal>
+            <Reveal><p className="lead">Vos étudiants ont accès à des milliers de parcours et de contacts. Pourtant, sans méthode, ils ne savent pas comment transformer ce réseau en prochaines étapes concrètes.</p></Reveal>
+            <div className="cards problem-quotes">
+              <Reveal className="card"><p>« Je ne sais pas par où commencer. »</p></Reveal>
+              <Reveal className="card" delay={0.08}><p>« Je sais ce que je veux, mais pas où le trouver. »</p></Reveal>
+            </div>
+            <Reveal><p>Abelink aide votre association à leur donner un point de départ et un chemin clair vers les bonnes personnes.</p></Reveal>
+          </div>
+        </section>
 
         <section id="comment" className="section">
           <div className="wrap">
@@ -129,7 +146,7 @@ export default function App() {
         </div>
       </footer>
 
-      <DemoSheet open={demo} onClose={() => setDemo(false)} />
+        <DemoSheet open={demo} onClose={() => setDemo(false)} />
     </div>
   )
 }

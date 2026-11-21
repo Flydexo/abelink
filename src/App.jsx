@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion } from 'motion/react'
 import Demo from './Demo.jsx'
 import DemoSheet from './DemoSheet.jsx'
+import { getAnalyticsConsent, hasAnalyticsConfig, initializeAnalytics, setAnalyticsConsent, track } from './analytics.js'
 
 const Logo = () => (
   <a className="logo" href="#top" aria-label="Abelink, accueil">Abe<span>link</span></a>
@@ -39,7 +40,11 @@ function Faq() {
     <div className="faq">
       {FAQ.map(([q, a], i) => (
         <div key={q} className="faq-item">
-          <button aria-expanded={open === i} onClick={() => setOpen(open === i ? -1 : i)}>
+          <button aria-expanded={open === i} onClick={() => {
+            const next = open === i ? -1 : i
+            setOpen(next)
+            if (next !== -1) track('faq_item_opened', { question_index: i + 1 })
+          }}>
             {q}<span className={open === i ? 'plus open' : 'plus'} aria-hidden="true" />
           </button>
           <motion.div initial={false} animate={{ height: open === i ? 'auto' : 0, opacity: open === i ? 1 : 0 }} style={{ overflow: 'hidden' }}>
@@ -54,12 +59,22 @@ function Faq() {
 export default function App() {
   const [demo, setDemo] = useState(false)
   const [demoReplay, setDemoReplay] = useState(0)
-  const openDemo = () => setDemo(true)
+  const [showConsent, setShowConsent] = useState(() => hasAnalyticsConfig && !getAnalyticsConsent())
+  useEffect(() => { initializeAnalytics() }, [])
+  const chooseConsent = (value) => {
+    setAnalyticsConsent(value)
+    setShowConsent(false)
+  }
+  const openDemo = (placement = 'unknown') => {
+    track('demo_request_opened', { placement })
+    setDemo(true)
+  }
   const replayDemo = () => {
+    track('interactive_demo_replayed')
     setDemoReplay((value) => value + 1)
     document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' })
   }
-  const Cta = () => <button className="btn primary" onClick={openDemo}>Demander une démo</button>
+  const Cta = ({ placement }) => <button className="btn primary" onClick={() => openDemo(placement)}>Demander une démo</button>
 
   return (
     <div id="top">
@@ -69,7 +84,7 @@ export default function App() {
           <nav aria-label="Principal">
             <a href="#demo">En action</a><a href="#comment">Fonctionnement</a><a href="#pour-qui">Pour qui</a><a href="#faq">FAQ</a>
           </nav>
-          <button className="btn small" onClick={openDemo}>Demander une démo</button>
+          <button className="btn small" onClick={() => openDemo('navigation')}>Demander une démo</button>
         </div>
       </header>
 
@@ -83,7 +98,7 @@ export default function App() {
               Responsables d’associations alumni, donnez à vos étudiants les moyens d’activer votre réseau : Abelink identifie les contacts pertinents et les chemins d’introduction possibles.
             </motion.p>
             <motion.div className="actions" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-              <Cta /><button className="btn ghost" onClick={replayDemo}>Voir en action</button>
+              <Cta placement="hero" /><button className="btn ghost" onClick={replayDemo}>Voir en action</button>
             </motion.div>
           </div>
         </section>
@@ -133,7 +148,7 @@ export default function App() {
 
         <section className="section final">
           <div className="wrap">
-            <Reveal><h2>Votre prochaine rencontre est déjà dans votre réseau.</h2><Cta /></Reveal>
+            <Reveal><h2>Votre prochaine rencontre est déjà dans votre réseau.</h2><Cta placement="footer_cta" /></Reveal>
           </div>
         </section>
       </main>
@@ -142,11 +157,20 @@ export default function App() {
         <div className="wrap foot-in">
           <Logo />
           <span>Abelink · © 2026</span>
-          <span><a href="#top">Confidentialité</a> · <a href="#top">Mentions légales</a></span>
+          <span><button className="text-button" onClick={() => setShowConsent(true)}>Préférences cookies</button> · <a href="#top">Mentions légales</a></span>
         </div>
       </footer>
 
-        <DemoSheet open={demo} onClose={() => setDemo(false)} />
+      <DemoSheet open={demo} onClose={() => setDemo(false)} />
+      {showConsent && hasAnalyticsConfig && (
+        <aside className="consent-banner" aria-label="Préférences de confidentialité">
+          <div><strong>Votre choix compte.</strong><p>Avec votre accord, nous utilisons PostHog pour mesurer l’utilisation du site et améliorer Abelink. Aucun champ du formulaire ni texte de recherche n’est transmis.</p></div>
+          <div className="consent-actions">
+            <button className="btn ghost" onClick={() => chooseConsent('rejected')}>Refuser</button>
+            <button className="btn primary" onClick={() => chooseConsent('accepted')}>Accepter les statistiques</button>
+          </div>
+        </aside>
+      )}
     </div>
   )
 }

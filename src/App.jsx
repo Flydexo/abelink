@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion } from 'motion/react'
 import Demo from './Demo.jsx'
 import DemoSheet from './DemoSheet.jsx'
+import LiveApp from './live/LiveApp.jsx'
 import { track } from './analytics.js'
 
 const Logo = () => (
@@ -57,8 +58,32 @@ function Faq() {
 }
 
 export default function App() {
+  const [route, setRoute] = useState(() =>
+    typeof window !== 'undefined' && window.location.pathname.startsWith('/app') ? '/app' : '/',
+  )
   const [demo, setDemo] = useState(false)
   const [demoReplay, setDemoReplay] = useState(0)
+
+  useEffect(() => {
+    const onPop = () => {
+      setRoute(window.location.pathname.startsWith('/app') ? '/app' : '/')
+    }
+    addEventListener('popstate', onPop)
+    return () => removeEventListener('popstate', onPop)
+  }, [])
+
+  const navigate = (to) => {
+    if (window.location.pathname !== to) {
+      window.history.pushState({}, '', to)
+    }
+    setRoute(to)
+    window.scrollTo({ top: 0 })
+  }
+
+  if (route === '/app') {
+    return <LiveApp onNavigateHome={() => navigate('/')} />
+  }
+
   const openDemo = (placement = 'unknown') => {
     track('demo_request_opened', { placement })
     setDemo(true)
@@ -77,8 +102,9 @@ export default function App() {
           <Logo />
           <nav aria-label="Principal">
             <a href="#demo">En action</a><a href="#comment">Fonctionnement</a><a href="#pour-qui">Pour qui</a><a href="#faq">FAQ</a>
+            <a href="/app" onClick={(e) => { e.preventDefault(); navigate('/app') }}>Démo live</a>
           </nav>
-          <button className="btn small" onClick={() => openDemo('navigation')}>Demander une démo</button>
+          <button className="btn small" onClick={() => navigate('/app')}>Ouvrir l’app</button>
         </div>
       </header>
 
@@ -92,7 +118,9 @@ export default function App() {
               Un étudiant vise un stage dans l’énergie, mais ne connaît personne chez les entreprises qui l’intéressent. Il passe des heures sur LinkedIn à chercher qui contacter, puis envoie des candidatures à froid. Abelink repère les alumni pertinents et le chemin d’introduction.
             </motion.p>
             <motion.div className="actions" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-              <Cta placement="hero" /><button className="btn ghost" onClick={replayDemo}>Voir en action</button>
+              <Cta placement="hero" />
+              <button className="btn ghost" onClick={() => navigate('/app')}>Tester la démo complète</button>
+              <button className="btn ghost" onClick={replayDemo}>Voir en action</button>
             </motion.div>
           </div>
         </section>

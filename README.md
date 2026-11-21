@@ -44,8 +44,8 @@ Analytics et plan de marquage : [docs/ANALYTICS.md](docs/ANALYTICS.md).
 
 La cible est le Compose existant `web` du projet `abelink`, environnement `dev`,
 branche `dev`, configuré pour utiliser `./docker-compose.dev.yml`. Cette stack
-contient les services `web` et `backend` ; les secrets restent dans le service
-backend et ne sont pas transmis au frontend. Ne pas les ajouter à la production.
+contient les services `web`, `backend` et `database` (PostgreSQL avec pgvector) ;
+les secrets restent côté serveur et ne sont pas transmis au frontend. Ne pas les ajouter à la production.
 Vérifier la ressource et son environnement avant toute écriture.
 
 **Les valeurs réelles doivent être enregistrées dans le champ d’environnement
@@ -56,7 +56,7 @@ le remplir avec des secrets.
 
 | Variable à enregistrer dans Dokploy | Valeur attendue |
 | --- | --- |
-| `DATABASE_URL` | Obligatoire : connexion à une base PostgreSQL dev dédiée, avec pgvector ; jamais la base de production ou celle de Dokploy. |
+| `POSTGRES_PASSWORD` | Obligatoire : mot de passe PostgreSQL dev généré en privé (32 octets aléatoires encodés en hexadécimal) ; conserver sa valeur après initialisation du volume. |
 | `GOOGLE_CLOUD_PROJECT` | Obligatoire : identifiant du projet Google Cloud autorisé. |
 | `GOOGLE_CLOUD_LOCATION` | `global` par défaut, à adapter aux modèles autorisés. |
 | `GEMMA_MODEL` | Obligatoire : identifiant du modèle génératif disponible dans ce projet. |
@@ -67,6 +67,14 @@ le remplir avec des secrets.
 | `TAVILY_API_KEY` | Facultative : clé Tavily pour le recours à la recherche payante. |
 | `PREFER_FREE_SEARCH` | `true` par défaut : recherche gratuite avant Tavily. |
 | `LINKEDIN_LI_AT` | Facultative : laisser vide ; le cookie ne sert que de recours pour certaines photos, pas à la recherche générale. |
+
+Le Compose déploie sa propre base PostgreSQL 16 avec pgvector, sans port publié,
+et conserve ses données dans le volume nommé `postgres_data` du projet Compose.
+Le backend attend que la base soit prête, puis applique ses migrations au démarrage.
+`DATABASE_URL` est construit automatiquement vers `database:5432/abelink_dev` :
+aucune base externe ni URL de connexion à fournir pour ce déploiement.
+Ne jamais supprimer le volume ni changer `POSTGRES_PASSWORD` après initialisation
+sans une procédure de sauvegarde et de rotation SQL autorisée.
 
 Le Compose injecte les variables applicatives dans le conteneur. Le JSON Google
 est transmis par un secret Compose, monté sous `/run/secrets/google-adc.json` ;

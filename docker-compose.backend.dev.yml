@@ -1,4 +1,19 @@
 services:
+  database:
+    image: pgvector/pgvector:0.8.7-pg16-trixie
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: abelink_dev
+      POSTGRES_USER: abelink
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?A strong dev database password is required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      start_period: 30s
+      retries: 12
   backend:
     build:
       context: ./backend
@@ -6,8 +21,11 @@ services:
     restart: unless-stopped
     expose:
       - "8000"
+    depends_on:
+      database:
+        condition: service_healthy
     environment:
-      DATABASE_URL: ${DATABASE_URL:?A dedicated dev PostgreSQL URL is required}
+      DATABASE_URL: postgresql+psycopg://abelink:${POSTGRES_PASSWORD:?A strong dev database password is required}@database:5432/abelink_dev
       GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT:?A Google Cloud project is required}
       GOOGLE_CLOUD_LOCATION: ${GOOGLE_CLOUD_LOCATION:-global}
       GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/google-adc.json
@@ -51,3 +69,6 @@ services:
 secrets:
   google_adc:
     environment: GOOGLE_APPLICATION_CREDENTIALS_JSON
+
+volumes:
+  postgres_data:

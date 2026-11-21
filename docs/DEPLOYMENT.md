@@ -193,7 +193,7 @@ summarize or redact instead of pasting them into chat or committing captures.
    approved merge workflow. Never merge or push automatically without a request.
 4. GitHub push hooks trigger the matching Compose deployment. Both resources
    use GitHub source, `autoDeploy: true`, trigger `push`. Production keeps
-   `./docker-compose.yml`; dev uses `./docker-compose.dev.yml` for web + backend.
+   `./docker-compose.yml`; dev uses `./docker-compose.dev.yml` for web + backend + database.
    Confirm live watch paths include every changed app/shared dependency.
 5. If the user requests a redeploy without a source change, resolve the Compose
    ID and submit the installed `compose.deploy` operation. Record submission
@@ -460,7 +460,7 @@ installed v0.31.4 API, without submitting a deployment:
 - Separate random `AUTH_SECRET` and `LINKCS_IMPORT_TOKEN` were generated
   privately and saved in dev only. `GOOGLE_CLOUD_LOCATION=global` and
   `PREFER_FREE_SEARCH=true` were saved. Never reproduce secret values here.
-- The member still must provide `DATABASE_URL`, `GOOGLE_CLOUD_PROJECT`,
+- The member still must provide `GOOGLE_CLOUD_PROJECT`,
   `GEMMA_MODEL`, `EMBEDDING_MODEL`, and `GOOGLE_APPLICATION_CREDENTIALS_JSON`.
   Merge them into this exact dev Compose's `env` before the next dev push;
   do not overwrite the generated secrets or unrelated variables.
@@ -472,6 +472,28 @@ build, container start, or deployment was submitted by the configuration work.
 The member's next push can trigger a deployment; it will fail if source files
 or required private inputs are missing. Configuration is not proof of runtime
 health or a working authenticated application.
+
+### Compose-managed dev database
+
+The member subsequently requested that Compose deploy the database too. The
+dev manifests now include `database` (PostgreSQL 16 with pgvector) and the
+project-scoped named volume `postgres_data`. No database port is published.
+The backend waits for database health, builds its internal `DATABASE_URL`
+from `POSTGRES_PASSWORD`, and applies the existing migrations. An external
+database URL is no longer a required input. The earlier no-database statement
+above describes the initial configuration work, not this prepared stack.
+
+Generate the dev database password privately as 32 random bytes encoded as hex
+only if it is missing, and save it in the existing dev Compose's environment.
+On November 21, 2026, `POSTGRES_PASSWORD` was generated privately and saved in
+that dev Compose, preserving all other keys. Readback confirmed the stable
+Compose project identity, `isolatedDeployment=false`, and
+`isolatedDeploymentsVolume=false`; production configuration was unchanged.
+Never rotate it implicitly: PostgreSQL initializes its SQL password only on an
+empty volume. Preserve the Compose project identity and the data volume; do not
+use `down -v`. Backup, restore, password rotation and major-version upgrades
+require separate authorized procedures. No database container or volume is
+created until an actual deployment; production remains unchanged.
 
 The dev backend requires a dedicated PostgreSQL with pgvector and pgcrypto,
 fixes embeddings at 768, and disables demo authentication. It exposes no host

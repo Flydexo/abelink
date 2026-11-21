@@ -45,12 +45,22 @@ GitHub integration, secrets, or maintenance work.
 - When the member authorizes configuration and supplies values, save them in
   this dev Compose's Dokploy `env` field. A local `.env`, an example file, or a
   list in chat does not configure Dokploy. Never claim otherwise.
-- Required private inputs: `DATABASE_URL` for a dedicated dev PostgreSQL with
-  pgvector, `GOOGLE_CLOUD_PROJECT`, `GEMMA_MODEL`, `EMBEDDING_MODEL`, complete
+- Dev PostgreSQL with pgvector is deployed by Compose as `database`, with the
+  project-scoped named volume `postgres_data` and no published database port.
+  The backend waits for database health and runs its existing migrations.
+  `DATABASE_URL` is assembled in Compose; do not request an external database URL.
+- Required private inputs: `POSTGRES_PASSWORD`, `GOOGLE_CLOUD_PROJECT`,
+  `GEMMA_MODEL`, `EMBEDDING_MODEL`, complete
   `GOOGLE_APPLICATION_CREDENTIALS_JSON`, and `AUTH_SECRET`. Generate a strong
   random dev `AUTH_SECRET` privately only if none exists; never rotate it
   implicitly. Models must be available to the supplied Google identity and the
   embedding model must support 768 output dimensions.
+- Generate `POSTGRES_PASSWORD` privately as 32 random bytes encoded as hex only
+  if absent, and save it in this dev Compose's Dokploy `env`. Preserve existing
+  values. PostgreSQL reads this password only when initializing an empty volume;
+  changing the env later does not rotate its SQL password. Never remove the
+  volume or run `down -v`; backups, restores and SQL password changes require
+  explicit authorization. Production and Dokploy's own database stay untouched.
 - `LINKCS_IMPORT_TOKEN` is also required by the dev Compose. Generate it privately
   if missing, preserve any existing value, and save it in the same Dokploy `env`.
   It protects the LinkCS upload page and bootstrap endpoint independently of

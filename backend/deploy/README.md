@@ -12,11 +12,12 @@ request. Follow `docs/DEPLOYMENT.md` for instance credentials and discovery.
 - Dokploy: `https://dokploy.abelink.app`, project `abelink`, environment `dev`.
 - Resource: the existing Compose named `web` in `dev`, GitHub repository
   `Flydexo/abelink`, branch `dev`, Compose path `./docker-compose.dev.yml`.
-- Its `web` and `backend` services deploy together on a push to `dev`. Reuse
+- Its `web`, `backend`, and `database` services deploy together on a push to `dev`. Reuse
   this resource; do not create an additional backend stack or duplicate hook.
 - Build context: `./backend`, internal service `backend`, port `8000`.
-- No published host ports, new database, application volumes, DNS records, or
-  shared proxy changes are included. The root frontend definition is unchanged.
+- Compose provides a dedicated PostgreSQL 16 + pgvector `database` service and
+  project-scoped `postgres_data` volume. No host ports, DNS records, or shared
+  proxy changes are included. The root frontend definition is unchanged.
 - Preserve the existing GitHub integration, push trigger, and `**` watch paths.
   The dev Compose path changes; production's source configuration does not.
 - Local preparation files do not reach a GitHub-source build until an explicitly
@@ -30,7 +31,7 @@ Git, a frontend `VITE_*` variable, or a Docker build argument.
 
 | Variable | Required | Meaning |
 | --- | --- | --- |
-| `DATABASE_URL` | Yes | Dedicated dev PostgreSQL connection, preferably `postgresql+psycopg://...`; never the production or Dokploy administration database. Preserve any provider-required TLS options. |
+| `POSTGRES_PASSWORD` | Yes | Generate privately as 32 random bytes encoded as hex if absent; preserve it after the database volume is initialized. Compose builds the backend connection URL automatically. |
 | `GOOGLE_CLOUD_PROJECT` | Yes | Google Cloud project identifier. |
 | `GOOGLE_CLOUD_LOCATION` | Defaults to `global` | Location compatible with the selected models. |
 | `GEMMA_MODEL` | Yes | Generation model verified as available to this project. |
@@ -69,6 +70,27 @@ interpolation rather than silently selecting demo defaults.
 7. Source publication and deployment remain separate authorizations. Once the
    real values are saved, the member's push to `dev` triggers the complete
    stack automatically; do not also submit a manual deployment for that push.
+
+### Compose-managed PostgreSQL
+
+The `database` service uses `pgvector/pgvector:0.8.7-pg16-trixie`, database
+`abelink_dev`, and user `abelink`. Only the Compose network can reach it; do not
+publish port 5432 or add a public domain. The backend receives its internal
+`DATABASE_URL` from Compose, waits for the database health check, and applies
+the existing idempotent migrations, including the vector extension.
+
+The project-scoped named volume `postgres_data` preserves data across rebuilds
+and pushes. Keep the Dokploy Compose project identity stable. No external
+PostgreSQL service or `DATABASE_URL` input is needed. A legacy `DATABASE_URL`
+in Dokploy is ignored by this manifest; do not delete unrelated environment keys.
+
+Generate `POSTGRES_PASSWORD` privately only if absent and save it in the existing
+dev Compose's `env`. Use hex to keep the interpolated connection URL valid.
+Postgres applies this value only to an empty data directory: changing the env
+does not change an existing SQL password. Never run `down -v`, delete the volume,
+or change the PostgreSQL major version to fix a deployment. Back up before any
+authorized storage maintenance; backups and restores are not implemented by
+this Compose. Production and Dokploy's administration database remain separate.
 
 ### Google credentials
 
@@ -130,7 +152,7 @@ existing same-origin URLs, without a new `VITE_API_URL` build.
 Before supplying secrets, validate the manifest using disposable dummy inputs:
 
 ```bash
-DATABASE_URL=postgresql+psycopg://validation:validation@invalid/validation \
+POSTGRES_PASSWORD=validation0123456789 \
 GOOGLE_CLOUD_PROJECT=validation \
 GEMMA_MODEL=validation \
 EMBEDDING_MODEL=validation \

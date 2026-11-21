@@ -86,10 +86,10 @@ export default function App() {
         <section className="hero">
           <div className="wrap">
             <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-              Exploitez votre réseau Alumni<br />à son <span className="mark">plein potentiel.</span>
+              Responsables d’associations alumni :<br />aidez vos étudiants à <span className="mark">trouver le bon contact.</span>
             </motion.h1>
             <motion.p className="lead" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}>
-              Responsables d’associations alumni, donnez à vos étudiants les moyens d’activer votre réseau : Abelink identifie les contacts pertinents et les chemins d’introduction possibles.
+              Un étudiant vise un stage dans l’énergie, mais ne connaît personne chez les entreprises qui l’intéressent. Il passe des heures sur LinkedIn à chercher qui contacter, puis envoie des candidatures à froid. Abelink repère les alumni pertinents et le chemin d’introduction.
             </motion.p>
             <motion.div className="actions" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
               <Cta placement="hero" /><button className="btn ghost" onClick={replayDemo}>Voir en action</button>
@@ -101,13 +101,13 @@ export default function App() {
 
         <section className="section problem">
           <div className="wrap">
-            <Reveal><h2>Un réseau immense. Mais par où commencer&nbsp;?</h2></Reveal>
-            <Reveal><p className="lead">Vos étudiants ont accès à des milliers de parcours et de contacts. Pourtant, sans méthode, ils ne savent pas comment transformer ce réseau en prochaines étapes concrètes.</p></Reveal>
+            <Reveal><h2>Un étudiant cherche un stage. Qui peut le mettre en relation&nbsp;?</h2></Reveal>
+            <Reveal><p className="lead">Pour les responsables d’associations alumni, la situation est familière : un étudiant de l’école cherche un stage de césure dans l’énergie, mais ne sait pas quel ancien contacter chez Engie ou EDF. Il passe ses soirées à parcourir LinkedIn, hésite à écrire à des inconnus et risque de laisser passer des pistes faute d’introduction.</p></Reveal>
             <div className="cards problem-quotes">
-              <Reveal className="card"><p>« Je ne sais pas par où commencer. »</p></Reveal>
-              <Reveal className="card" delay={0.08}><p>« Je sais ce que je veux, mais pas où le trouver. »</p></Reveal>
+              <Reveal className="card"><p>« Je cherche un stage dans l’énergie : quel alumni peut me conseiller ? »</p></Reveal>
+              <Reveal className="card" delay={0.08}><p>« J’ai passé des heures sur LinkedIn sans trouver à qui écrire. »</p></Reveal>
             </div>
-            <Reveal><p>Abelink aide votre association à leur donner un point de départ et un chemin clair vers les bonnes personnes.</p></Reveal>
+            <Reveal><p>Abelink transforme les parcours de votre réseau en pistes concrètes : les bons alumni, les liens qui vous rapprochent et une demande d’introduction à envoyer.</p></Reveal>
           </div>
         </section>
 

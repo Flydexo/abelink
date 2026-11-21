@@ -86,7 +86,7 @@ export default function App() {
         <section className="hero">
           <div className="wrap">
             <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-              Responsables d’associations alumni :<br />aidez vos étudiants à <span className="mark">trouver le bon contact.</span>
+              Exploitez votre réseau Alumni<br />à son <span className="mark">plein potentiel.</span>
             </motion.h1>
             <motion.p className="lead" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}>
               Un étudiant vise un stage dans l’énergie, mais ne connaît personne chez les entreprises qui l’intéressent. Il passe des heures sur LinkedIn à chercher qui contacter, puis envoie des candidatures à froid. Abelink repère les alumni pertinents et le chemin d’introduction.

@@ -100,7 +100,7 @@ export default function App() {
   }
 
   if (pathname.startsWith('/app')) {
-    return <LiveApp onNavigateHome={() => navigate('/')} />
+    return <LiveApp pathname={pathname} onNavigate={navigate} onNavigateHome={() => navigate('/')} />
   }
 
   const onWaitlist = isWaitlistPath(pathname)

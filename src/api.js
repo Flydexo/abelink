@@ -163,6 +163,19 @@ export async function importLinkedInArchive(formData, userId = null) {
   return res.json()
 }
 
+export async function importLinkCSDump(file, importToken) {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('confirmed', 'true')
+  const res = await fetch(`${API_BASE}/api/v1/linkcs/import`, {
+    method: 'POST',
+    headers: { 'X-LinkCS-Import-Token': importToken },
+    body: formData,
+  })
+  if (!res.ok) await parseError(res)
+  return res.json()
+}
+
 export async function listApiTokens(userId = null) {
   const res = await fetch(`${API_BASE}/api/v1/tokens`, {
     headers: buildHeaders(userId),

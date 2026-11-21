@@ -15,6 +15,7 @@ from starlette.routing import Route
 from app.api.routes_chat import router as chat_router
 from app.api.routes_health import router as health_router
 from app.api.routes_import import router as import_router
+from app.api.routes_linkcs import router as linkcs_router
 from app.api.routes_profiles import router as profiles_router
 from app.api.routes_search import router as search_router
 from app.api.routes_tokens import router as tokens_router
@@ -224,6 +225,7 @@ def create_app(
 
     app.include_router(health_router)
     app.include_router(import_router)
+    app.include_router(linkcs_router)
     app.include_router(search_router)
     app.include_router(chat_router)
     app.include_router(profiles_router)

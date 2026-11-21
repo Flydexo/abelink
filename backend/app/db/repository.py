@@ -189,6 +189,10 @@ class AbstractAlumniRepository(Protocol):
 
     async def upsert_edges(self, edges: list[EdgeRecord]) -> int: ...
 
+    async def import_linkcs_records(
+        self, profiles: list[ProfileRecord], edges: list[EdgeRecord]
+    ) -> tuple[int, int]: ...
+
     async def hybrid_search_alumni(
         self,
         query_embedding: list[float],
@@ -400,6 +404,25 @@ class InMemoryAlumniRepository:
             profile.id = str(uuid.uuid4())
         self.profiles[profile.id] = profile
         return profile
+
+    async def import_linkcs_records(
+        self, profiles: list[ProfileRecord], edges: list[EdgeRecord]
+    ) -> tuple[int, int]:
+        known_urls = {profile.linkedin_url for profile in self.profiles.values() if profile.linkedin_url}
+        additions = [profile for profile in profiles if profile.id not in self.profiles]
+        if any(profile.linkedin_url in known_urls for profile in additions if profile.linkedin_url):
+            raise ValueError("Un profil existe déjà avec cette URL LinkedIn ; réessayez l’import.")
+        valid_ids = set(self.profiles) | {profile.id for profile in additions}
+        if any(edge.source_id not in valid_ids or edge.target_id not in valid_ids for edge in edges):
+            raise ValueError("Une relation référence un profil inconnu.")
+        new_edges = {
+            (edge.source_id, edge.target_id, edge.edge_type): edge
+            for edge in edges
+            if (edge.source_id, edge.target_id, edge.edge_type) not in self.edges
+        }
+        self.profiles.update({profile.id: profile for profile in additions})
+        self.edges.update(new_edges)
+        return len(additions), len(new_edges)
 
     async def update_enrichment(
         self,
@@ -635,6 +658,52 @@ class PostgresAlumniRepository:
     def __init__(self, engine: AsyncEngine, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self.engine = engine
         self.session_factory = session_factory
+
+    async def import_linkcs_records(
+        self, profiles: list[ProfileRecord], edges: list[EdgeRecord]
+    ) -> tuple[int, int]:
+        """Insert a dump atomically, preserving every existing profile and relation."""
+        profiles_added = 0
+        edges_added = 0
+        async with self.session_factory() as session, session.begin():
+            for start in range(0, len(profiles), 100):
+                batch = profiles[start : start + 100]
+                values = [
+                    {
+                        "id": uuid.UUID(profile.id),
+                        "full_name": profile.full_name,
+                        "email": profile.email,
+                        "linkedin_url": profile.linkedin_url,
+                        "promo_year": profile.promo_year,
+                        "bio": profile.bio,
+                        "education": profile.education,
+                        "associations": profile.associations,
+                        "passions": profile.passions,
+                        "is_student": False,
+                        "has_imported_linkedin": False,
+                        "enrichment_source": "LINKCS_DB",
+                    }
+                    for profile in batch
+                ]
+                statement = pg_insert(ProfileORM).on_conflict_do_nothing().returning(ProfileORM.id)
+                result = await session.execute(statement, values)
+                profiles_added += len(result.scalars().all())
+            for start in range(0, len(edges), 500):
+                batch = edges[start : start + 500]
+                values = [
+                    {
+                        "source_id": uuid.UUID(edge.source_id),
+                        "target_id": uuid.UUID(edge.target_id),
+                        "edge_type": edge.edge_type,
+                        "probability": edge.probability,
+                        "reason": edge.reason,
+                    }
+                    for edge in batch
+                ]
+                statement = pg_insert(EdgeORM).on_conflict_do_nothing().returning(EdgeORM.id)
+                result = await session.execute(statement, values)
+                edges_added += len(result.scalars().all())
+        return profiles_added, edges_added
 
     async def get_profile(self, profile_id: str) -> Optional[ProfileRecord]:
         try:

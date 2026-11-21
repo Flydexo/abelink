@@ -1,0 +1,13 @@
+services:
+  web:
+    extends:
+      file: docker-compose.yml
+      service: web
+  backend:
+    extends:
+      file: docker-compose.backend.dev.yml
+      service: backend
+
+secrets:
+  google_adc:
+    environment: GOOGLE_APPLICATION_CREDENTIALS_JSON

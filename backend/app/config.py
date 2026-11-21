@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     demo_mode: bool = False
     linkcs_data_path: Optional[str] = None
     linkedin_li_at: Optional[str] = None
+    linkcs_import_token: Optional[str] = None
     public_api_url: str = "http://localhost:8000"
 
     default_demo_student_id: str = "11111111-1111-4111-8111-111111111111"

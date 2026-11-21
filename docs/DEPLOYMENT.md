@@ -58,9 +58,11 @@ The initial source revision on both branches was
 
 ## 3. Repository and build contract
 
-This repository is the intended monorepo root. At this baseline it contains
-only a root-level static landing page, not an `apps/*` workspace or a backend.
-Inspect future additions rather than assuming package-manager/workspace layout.
+This repository is the intended monorepo root, not an `apps/*` workspace.
+The deployed Compose baseline below is the root-level static landing page.
+The current checkout also contains a Python backend under `backend/`; its
+presence does not mean it has been deployed. See section 12 for the complete
+dev-only stack and its auto-deployment configuration.
 
 - `package.json` / `package-lock.json`: npm dependency source of truth.
 - `src/`: React application; Vite builds to `dist/`.
@@ -68,7 +70,7 @@ Inspect future additions rather than assuming package-manager/workspace layout.
 - `nginx.conf`: internal HTTP port 80, SPA fallback, immutable hashed assets.
 - `docker-compose.yml`: `web`, `build: .`, restart policy, internal port 80.
 - Image health check: HTTP GET `/` inside the container every 30 seconds.
-- No application database, persistent app volume, or required app secret is
+- For the frontend-only baseline, no application database, persistent app volume, or required app secret is
   declared by the current Compose file. Dokploy itself does have persistent state.
 
 Local validation after relevant code changes:
@@ -190,7 +192,8 @@ summarize or redact instead of pasting them into chat or committing captures.
    deployment before promoting the tested change to `main` through the team's
    approved merge workflow. Never merge or push automatically without a request.
 4. GitHub push hooks trigger the matching Compose deployment. Both resources
-   use GitHub source, `./docker-compose.yml`, `autoDeploy: true`, trigger `push`.
+   use GitHub source, `autoDeploy: true`, trigger `push`. Production keeps
+   `./docker-compose.yml`; dev uses `./docker-compose.dev.yml` for web + backend.
    Confirm live watch paths include every changed app/shared dependency.
 5. If the user requests a redeploy without a source change, resolve the Compose
    ID and submit the installed `compose.deploy` operation. Record submission
@@ -436,3 +439,46 @@ Name failed or skipped checks; do not report queued work as deployed.
 After authorized infrastructure changes, update this inventory and `AGENTS.md`
 when their invariants change. Keep credentials and token-bearing URLs out of
 both documents. Do not create commits or publish documentation without a request.
+
+## 12. Backend dev auto-deployment (configured, not deployed)
+
+On November 21, 2026, after the member requested deployment on their next dev
+push, the existing `web` Compose in `abelink` / `dev` was configured through the
+installed v0.31.4 API, without submitting a deployment:
+
+- Compose ID: `XXp-RthZqER8mcRUd5_HS` (rediscover before another write).
+- Repository/branch remain `Flydexo/abelink`, `dev`.
+- Compose path: `./docker-compose.dev.yml`, extending the root frontend service
+  and the backend service in `docker-compose.backend.dev.yml`.
+- `autoDeploy=true`, trigger `push`, existing watch paths `["**"]` preserved.
+- `createEnvFile=true`, so the dev Compose environment is available to Compose.
+- The existing `/` domain remains attached to `web:80`.
+- Backend domains were saved on `dev.abelink.app` for `/api`, `/health`, `/mcp`,
+  and `/openapi.json`, attached to `backend:8000`, with `https=false`,
+  `certificateType=none`, `stripPath=false`. These reach containers only after
+  deployment applies their routing labels.
+- Separate random `AUTH_SECRET` and `LINKCS_IMPORT_TOKEN` were generated
+  privately and saved in dev only. `GOOGLE_CLOUD_LOCATION=global` and
+  `PREFER_FREE_SEARCH=true` were saved. Never reproduce secret values here.
+- The member still must provide `DATABASE_URL`, `GOOGLE_CLOUD_PROJECT`,
+  `GEMMA_MODEL`, `EMBEDDING_MODEL`, and `GOOGLE_APPLICATION_CREDENTIALS_JSON`.
+  Merge them into this exact dev Compose's `env` before the next dev push;
+  do not overwrite the generated secrets or unrelated variables.
+
+No new Compose resource, database, persistent volume, DNS record, or shared
+proxy configuration was created. Production retains its original source path,
+branch, trigger and domain; it was not modified. No Git commit, push, image
+build, container start, or deployment was submitted by the configuration work.
+The member's next push can trigger a deployment; it will fail if source files
+or required private inputs are missing. Configuration is not proof of runtime
+health or a working authenticated application.
+
+The dev backend requires a dedicated PostgreSQL with pgvector and pgcrypto,
+fixes embeddings at 768, and disables demo authentication. It exposes no host
+ports. `/app/import-linkcs` provides a protected JSON upload to seed the
+database with the dedicated `LINKCS_IMPORT_TOKEN`; this does not create a
+student login or bypass authorization requirements.
+
+See `backend/deploy/README.md` for secret handling, validation and the remaining
+authentication/data/ranking blockers. `backend/deploy/dev.env.example` is a
+public key-name template only, never the storage location for real credentials.

@@ -1,11 +1,25 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion } from 'motion/react'
 import Demo from './Demo.jsx'
 import DemoSheet from './DemoSheet.jsx'
+import WaitlistPage from './WaitlistPage.jsx'
 import { track } from './analytics.js'
 
-const Logo = () => (
-  <a className="logo" href="#top" aria-label="Abelink, accueil">Abe<span>link</span></a>
+const isWaitlistPath = (pathname) => pathname === '/waitlist' || pathname === '/eleves'
+
+const Logo = ({ onNavigate }) => (
+  <a
+    className="logo"
+    href="/"
+    aria-label="Abelink, accueil"
+    onClick={(e) => {
+      if (!onNavigate) return
+      e.preventDefault()
+      onNavigate('/')
+    }}
+  >
+    Abe<span>link</span>
+  </a>
 )
 
 const Reveal = ({ children, className, delay = 0 }) => (
@@ -57,8 +71,33 @@ function Faq() {
 }
 
 export default function App() {
+  const [pathname, setPathname] = useState(() => window.location.pathname)
   const [demo, setDemo] = useState(false)
   const [demoReplay, setDemoReplay] = useState(0)
+
+  useEffect(() => {
+    const onPopState = () => setPathname(window.location.pathname)
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [])
+
+  const navigate = (to, hash = '') => {
+    const targetUrl = `${to}${hash}`
+    if (window.location.pathname !== to || window.location.search) {
+      window.history.pushState({}, '', targetUrl)
+      setPathname(to)
+    }
+    if (hash) {
+      requestAnimationFrame(() => {
+        document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: 'smooth' })
+      })
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }
+
+  const onWaitlist = isWaitlistPath(pathname)
+
   const openDemo = (placement = 'unknown') => {
     track('demo_request_opened', { placement })
     setDemo(true)
@@ -74,14 +113,40 @@ export default function App() {
     <div id="top">
       <header className="nav">
         <div className="nav-in">
-          <Logo />
+          <Logo onNavigate={navigate} />
           <nav aria-label="Principal">
-            <a href="#demo">En action</a><a href="#comment">Fonctionnement</a><a href="#pour-qui">Pour qui</a><a href="#faq">FAQ</a>
+            {onWaitlist ? (
+              <a href="/" onClick={(e) => { e.preventDefault(); navigate('/') }}>Accueil</a>
+            ) : (
+              <>
+                <a href="#demo">En action</a><a href="#comment">Fonctionnement</a><a href="#pour-qui">Pour qui</a><a href="#faq">FAQ</a>
+              </>
+            )}
+            <a
+              href="/waitlist"
+              className={onWaitlist ? 'nav-active' : undefined}
+              onClick={(e) => {
+                e.preventDefault()
+                track('waitlist_page_opened', { placement: 'navigation' })
+                navigate('/waitlist')
+              }}
+            >
+              Élèves · Waitlist
+            </a>
           </nav>
-          <button className="btn small" onClick={() => openDemo('navigation')}>Demander une démo</button>
+          {onWaitlist ? (
+            <a className="btn small" href="#waitlist-checkout" onClick={(e) => { e.preventDefault(); document.querySelector('.checkout-card')?.scrollIntoView({ behavior: 'smooth' }) }}>
+              Rejoins la waitlist
+            </a>
+          ) : (
+            <button className="btn small" onClick={() => openDemo('navigation')}>Demander une démo</button>
+          )}
         </div>
       </header>
 
+      {onWaitlist ? (
+        <WaitlistPage onNavigateHome={() => navigate('/')} />
+      ) : (
       <main>
         <section className="hero">
           <div className="wrap">
@@ -94,6 +159,19 @@ export default function App() {
             <motion.div className="actions" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
               <Cta placement="hero" /><button className="btn ghost" onClick={replayDemo}>Voir en action</button>
             </motion.div>
+            <motion.p className="hero-student-link" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.26 }}>
+              Tu es étudiant ?{' '}
+              <a
+                href="/waitlist"
+                onClick={(e) => {
+                  e.preventDefault()
+                  track('waitlist_page_opened', { placement: 'hero' })
+                  navigate('/waitlist')
+                }}
+              >
+                Rejoins la waitlist pour 1 € →
+              </a>
+            </motion.p>
           </div>
         </section>
 
@@ -146,12 +224,26 @@ export default function App() {
           </div>
         </section>
       </main>
+      )}
 
       <footer className="footer">
         <div className="wrap foot-in">
-          <Logo />
+          <Logo onNavigate={navigate} />
           <span>Abelink · © 2026</span>
-          <span><a href="#top">Confidentialité</a> · <a href="#top">Mentions légales</a></span>
+          <span>
+            <a
+              href="/waitlist"
+              onClick={(e) => {
+                e.preventDefault()
+                track('waitlist_page_opened', { placement: 'footer' })
+                navigate('/waitlist')
+              }}
+            >
+              Waitlist élèves (1 €)
+            </a>
+            {' · '}
+            <a href="#top">Confidentialité</a> · <a href="#top">Mentions légales</a>
+          </span>
         </div>
       </footer>
 

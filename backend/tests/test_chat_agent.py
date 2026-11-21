@@ -36,6 +36,22 @@ def _parse_sse_frames(raw_text: str) -> list[tuple[str, dict]]:
     return frames
 
 
+def test_chat_stream_reports_database_failure_without_exposing_parameters(client, monkeypatch):
+    async def fail_search(*args, **kwargs):
+        raise RuntimeError("SQL failure with private query parameters")
+
+    monkeypatch.setattr(client.app.state.container.repository, "hybrid_search_alumni", fail_search)
+    response = client.post("/api/v1/chat/stream", json={
+        "messages": [{"role": "user", "content": "Je cherche un alumni chez Mistral AI"}],
+    })
+    assert response.status_code == 200
+    frames = _parse_sse_frames(response.text)
+    assert "tool_start" in [name for name, _ in frames]
+    assert frames[-1] == ("error", {"detail": "La recherche a échoué. Veuillez réessayer."})
+    assert "private query parameters" not in response.text
+    assert "final_result" not in [name for name, _ in frames]
+
+
 def test_chat_search_and_sse_stream_with_mutuals(client):
     payload = {
         "messages": [

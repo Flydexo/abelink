@@ -1,3 +1,5 @@
+import { readSseStream } from './sse.js'
+
 const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
 
 function buildHeaders(userId, extra = {}) {
@@ -65,51 +67,6 @@ export async function fetchGraphPath(targetId, userId = null, maxHops = 4, kPath
   })
   if (!res.ok) await parseError(res)
   return res.json()
-}
-
-async function readSseStream(res, onEvent) {
-  if (!res.body) throw new Error('Flux SSE indisponible sur ce navigateur.')
-
-  const reader = res.body.getReader()
-  const decoder = new TextDecoder('utf-8')
-  let buffer = ''
-  let finalResponse = null
-
-  const dispatchFrame = (rawFrame) => {
-    const lines = rawFrame.split(/\r?\n/)
-    let eventName = 'message'
-    const dataLines = []
-    for (const line of lines) {
-      if (line.startsWith('event:')) {
-        eventName = line.slice(6).trim()
-      } else if (line.startsWith('data:')) {
-        dataLines.push(line.slice(5).trim())
-      }
-    }
-    if (!dataLines.length) return
-    const parsed = JSON.parse(dataLines.join('\n'))
-    onEvent?.(eventName, parsed)
-    if (eventName === 'final_result') {
-      if (parsed?.data?.response) {
-        finalResponse = parsed.data.response
-      } else if (parsed?.response) {
-        finalResponse = parsed.response
-      }
-    }
-  }
-
-  while (true) {
-    const { value, done } = await reader.read()
-    if (done) break
-    buffer += decoder.decode(value, { stream: true })
-    const frames = buffer.split(/\r?\n\r?\n/)
-    buffer = frames.pop() || ''
-    for (const frame of frames) {
-      if (frame.trim()) dispatchFrame(frame)
-    }
-  }
-  if (buffer.trim()) dispatchFrame(buffer)
-  return finalResponse
 }
 
 export async function streamActionPlan(payload, userId, onEvent, signal) {

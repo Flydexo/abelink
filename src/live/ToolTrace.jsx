@@ -21,9 +21,13 @@ export default function ToolTrace({
   if (!running && tools.length === 0) return null
 
   const doneCount = tools.filter((t) => t.status === 'done').length
+  const failed = tools.some((t) => t.status === 'error')
+  const cancelled = tools.some((t) => t.status === 'cancelled')
   const totalTools = tools.length
   const headerText = running
     ? 'Exécution des outils…'
+    : failed ? 'La recherche a échoué'
+    : cancelled ? 'Recherche interrompue'
     : `${totalTools} outil${totalTools > 1 ? 's' : ''} exécuté${totalTools > 1 ? 's' : ''} en ${formatDuration(totalDurationMs)}`
 
   return (

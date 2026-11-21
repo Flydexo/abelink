@@ -239,6 +239,9 @@ export default function ChatView({ activeUser, activeUserId, onSelectPerson }) {
         updateAssistant((m) => ({
           ...m,
           intro_text: m.intro_text || 'Recherche interrompue.',
+          tools_used: m.tools_used.map((tool) => tool.status === 'running'
+            ? { ...tool, status: 'cancelled', detail: 'Recherche interrompue.' }
+            : tool),
           running: false,
         }))
       } else {
@@ -246,6 +249,9 @@ export default function ChatView({ activeUser, activeUserId, onSelectPerson }) {
         updateAssistant((m) => ({
           ...m,
           intro_text: m.intro_text || 'Une erreur est survenue lors de l’exécution.',
+          tools_used: m.tools_used.map((tool) => tool.status === 'running'
+            ? { ...tool, status: 'error', detail: 'Cette étape a échoué. Veuillez réessayer.' }
+            : tool),
           running: false,
         }))
       }

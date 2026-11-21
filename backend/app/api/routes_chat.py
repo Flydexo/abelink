@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from typing import Any, AsyncGenerator, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -14,6 +15,7 @@ from app.auth import get_current_student_id
 from app.schemas.chat import ChatRequest, ChatResponse
 
 router = APIRouter(prefix="/api/v1", tags=["chat"])
+logger = logging.getLogger(__name__)
 
 
 @router.post(
@@ -68,7 +70,9 @@ async def stream_chat_alumni_agent(
                 event_callback=on_event,
             )
         except Exception as exc:
-            await queue.put(("error", {"detail": str(exc)}))
+            # Database exceptions can contain SQL and query parameters.
+            logger.error("Chat stream failed (%s)", type(exc).__name__)
+            await queue.put(("error", {"detail": "La recherche a échoué. Veuillez réessayer."}))
         finally:
             await queue.put(None)
 

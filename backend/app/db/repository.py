@@ -1106,9 +1106,9 @@ class PostgresAlumniRepository:
                 ) AS hybrid_score
             FROM profiles p
             WHERE p.is_student = FALSE
-              AND (:exclude_id IS NULL OR p.id::text <> :exclude_id)
-              AND (:promo_min IS NULL OR p.promo_year >= :promo_min)
-              AND (:promo_max IS NULL OR p.promo_year <= :promo_max)
+              AND (CAST(:exclude_id AS text) IS NULL OR p.id::text <> CAST(:exclude_id AS text))
+              AND (CAST(:promo_min AS integer) IS NULL OR p.promo_year >= CAST(:promo_min AS integer))
+              AND (CAST(:promo_max AS integer) IS NULL OR p.promo_year <= CAST(:promo_max AS integer))
             ORDER BY hybrid_score DESC
             LIMIT :limit
             """

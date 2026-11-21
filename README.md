@@ -123,8 +123,10 @@ Ouvrir `/app/import-linkcs` ou l’onglet **Import de données** de l’applicat
 
 Les exports Abelink jusqu’à 1 Gio sont transférés par blocs de 4 Mio puis lus
 par lots dans une transaction PostgreSQL. Les profils et relations existants
-ne sont pas remplacés ; les relations fournies sont importées directement sans
-en inférer de nouvelles. Ce format ne restaure pas les jetons ni le schéma SQL.
+ne sont pas remplacés. Les profils qui partagent la même URL LinkedIn sont
+réutilisés et les relations importées sont rattachées à leurs identifiants
+existants. Aucune relation n’est inférée. Ce format ne restaure pas les jetons
+ni le schéma SQL.
 
 Pour les listes LinkCS, le backend accepte jusqu’à 10 Mio, 5 000 entrées et
 100 000 relations générées. Les champs

@@ -13,7 +13,7 @@ from typing import Any, Optional, Protocol
 
 import numpy as np
 from anyio import to_thread
-from sqlalchemy import delete, select, text, update
+from sqlalchemy import delete, or_, select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
@@ -665,7 +665,8 @@ class PostgresAlumniRepository:
     async def import_bundle_records(self, records: Iterator[ProfileRecord | EdgeRecord]) -> tuple[int, int, int]:
         """Insert the ordered bundle in one transaction without replacing stored rows."""
         profiles_seen = profiles_added = edges_added = 0
-        profile_insert = pg_insert(ProfileORM).on_conflict_do_nothing(index_elements=[ProfileORM.id])
+        profile_insert = pg_insert(ProfileORM).on_conflict_do_nothing().returning(ProfileORM.id)
+        remapped_ids: dict[uuid.UUID, uuid.UUID] = {}
         edge_insert = pg_insert(EdgeORM).on_conflict_do_nothing(
             index_elements=[EdgeORM.source_id, EdgeORM.target_id, EdgeORM.edge_type]
         )
@@ -681,16 +682,43 @@ class PostgresAlumniRepository:
                     else:
                         row = asdict(record)
                         row["id"] = uuid.UUID(record.id) if record.id else uuid.uuid4()
-                        row["source_id"] = uuid.UUID(record.source_id)
-                        row["target_id"] = uuid.UUID(record.target_id)
                         edges.append(row)
                 if profiles:
                     profiles_seen += len(profiles)
-                    result = await session.execute(profile_insert.returning(ProfileORM.id), profiles)
-                    profiles_added += len(result.scalars().all())
+                    result = await session.execute(profile_insert, profiles)
+                    inserted_ids = set(result.scalars().all())
+                    profiles_added += len(inserted_ids)
+                    skipped = [row for row in profiles if row["id"] not in inserted_ids]
+                    if skipped:
+                        matches = await session.execute(select(ProfileORM.id, ProfileORM.linkedin_url).where(or_(
+                            ProfileORM.id.in_({row["id"] for row in skipped}),
+                            ProfileORM.linkedin_url.in_({row["linkedin_url"] for row in skipped if row["linkedin_url"] is not None}),
+                        )))
+                        existing_ids = set(inserted_ids)
+                        ids_by_url = {}
+                        for existing_id, url in matches:
+                            existing_ids.add(existing_id)
+                            if url is not None:
+                                ids_by_url[url] = existing_id
+                        for row in skipped:
+                            imported_id = row["id"]
+                            if imported_id not in existing_ids:
+                                matched_id = ids_by_url.get(row["linkedin_url"])
+                                if matched_id is None:
+                                    raise ValueError("Le profil existant n’a pas pu être retrouvé.")
+                                remapped_ids[imported_id] = matched_id
                 if edges:
-                    result = await session.execute(edge_insert.returning(EdgeORM.id), edges)
-                    edges_added += len(result.scalars().all())
+                    mapped_edges = []
+                    for row in edges:
+                        source_id = uuid.UUID(row["source_id"])
+                        target_id = uuid.UUID(row["target_id"])
+                        row["source_id"] = remapped_ids.get(source_id, source_id)
+                        row["target_id"] = remapped_ids.get(target_id, target_id)
+                        if row["source_id"] != row["target_id"]:
+                            mapped_edges.append(row)
+                    if mapped_edges:
+                        result = await session.execute(edge_insert.returning(EdgeORM.id), mapped_edges)
+                        edges_added += len(result.scalars().all())
         return profiles_seen, profiles_added, edges_added
 
     async def iter_graph_records(self) -> AsyncIterator[ProfileRecord | EdgeRecord]:

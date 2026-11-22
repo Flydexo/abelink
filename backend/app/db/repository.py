@@ -853,32 +853,40 @@ class PostgresAlumniRepository:
     async def upsert_edges(self, edges: list[EdgeRecord]) -> int:
         if not edges:
             return 0
-        rows_to_insert = []
+        deduped: dict[tuple[str, str, str], dict] = {}
         for edge in edges:
             if edge.source_id == edge.target_id:
                 continue
-            rows_to_insert.append(
-                {
-                    "id": uuid.UUID(edge.id) if edge.id else uuid.uuid4(),
-                    "source_id": uuid.UUID(edge.source_id),
-                    "target_id": uuid.UUID(edge.target_id),
-                    "edge_type": edge.edge_type,
-                    "probability": float(max(0.05, min(0.99, edge.probability))),
-                    "reason": edge.reason,
-                }
-            )
+            prob = float(max(0.05, min(0.99, edge.probability)))
+            key = (edge.source_id, edge.target_id, edge.edge_type)
+            existing = deduped.get(key)
+            if existing is not None and existing["probability"] >= prob:
+                continue
+            deduped[key] = {
+                "id": uuid.UUID(edge.id) if edge.id else uuid.uuid4(),
+                "source_id": uuid.UUID(edge.source_id),
+                "target_id": uuid.UUID(edge.target_id),
+                "edge_type": edge.edge_type,
+                "probability": prob,
+                "reason": edge.reason,
+            }
+        rows_to_insert = list(deduped.values())
         if not rows_to_insert:
             return 0
+        # Chunk to stay well below PostgreSQL/asyncpg's 32,767 bind-parameter limit (6 cols/row).
+        chunk_size = 2000
         async with self.session_factory() as session:
-            stmt = pg_insert(EdgeORM).values(rows_to_insert)
-            stmt = stmt.on_conflict_do_update(
-                index_elements=[EdgeORM.source_id, EdgeORM.target_id, EdgeORM.edge_type],
-                set_={
-                    "probability": stmt.excluded.probability,
-                    "reason": stmt.excluded.reason,
-                },
-            )
-            await session.execute(stmt)
+            for start in range(0, len(rows_to_insert), chunk_size):
+                chunk = rows_to_insert[start : start + chunk_size]
+                stmt = pg_insert(EdgeORM).values(chunk)
+                stmt = stmt.on_conflict_do_update(
+                    index_elements=[EdgeORM.source_id, EdgeORM.target_id, EdgeORM.edge_type],
+                    set_={
+                        "probability": stmt.excluded.probability,
+                        "reason": stmt.excluded.reason,
+                    },
+                )
+                await session.execute(stmt)
             await session.commit()
         return len(rows_to_insert)
 

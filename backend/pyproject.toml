@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=69.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "abelink-backend"
+version = "0.1.0"
+description = "Abelink Alumni Graph & AI Action Plan Backend (FastAPI, pgvector, NetworkX, Vertex AI, Tavily, FastMCP)"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "pydantic>=2.9.0",
+    "pydantic-settings>=2.6.0",
+    "sqlalchemy[asyncio]>=2.0.36",
+    "psycopg[binary,pool]>=3.2.0",
+    "pgvector>=0.3.6",
+    "networkx>=3.2",
+    "numpy>=1.26.0",
+    "google-genai>=1.0.0",
+    "tavily-python>=0.5.0",
+    "tenacity>=9.0.0",
+    "mcp>=1.6.0",
+    "python-multipart>=0.0.12",
+    "python-dotenv>=1.0.0",
+    "PyJWT>=2.9.0",
+    "httpx>=0.28.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pglast>=7,<8",
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "httpx>=0.28.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["app*", "scripts*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+markers = [
+    "live: live integration tests against Vertex AI / Tavily / Postgres",
+]
+addopts = "-m 'not live'"

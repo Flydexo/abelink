@@ -1,0 +1,76 @@
+services:
+  database:
+    image: pgvector/pgvector:0.8.7-pg16-trixie
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: abelink_dev
+      POSTGRES_USER: abelink
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?A strong dev database password is required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      start_period: 30s
+      retries: 12
+  backend:
+    build:
+      context: ./backend
+    init: true
+    restart: unless-stopped
+    expose:
+      - "8000"
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg://abelink:${POSTGRES_PASSWORD:?A strong dev database password is required}@database:5432/abelink_dev
+      GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT:?A Google Cloud project is required}
+      GOOGLE_CLOUD_LOCATION: ${GOOGLE_CLOUD_LOCATION:-global}
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/google-adc.json
+      GEMMA_MODEL: ${GEMMA_MODEL:?A verified Vertex generation model is required}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:?A verified Vertex embedding model is required}
+      EMBEDDING_DIM: "768"
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      PREFER_FREE_SEARCH: ${PREFER_FREE_SEARCH:-true}
+      ENRICHMENT_CACHE_PATH: ""
+      AUTH_SECRET: ${AUTH_SECRET:?A strong dev JWT signing secret is required}
+      LINKCS_IMPORT_TOKEN: ${LINKCS_IMPORT_TOKEN:-}
+      BUNDLE_UPLOAD_DIRECTORY: /app
+      CORS_ORIGINS: https://dev.abelink.app
+      ALLOW_DEMO_AUTH: "false"
+      ALLOW_PUBLIC_ACCESS: "true"
+      DEMO_MODE: "false"
+      PUBLIC_API_URL: https://dev.abelink.app
+      LINKEDIN_LI_AT: ${LINKEDIN_LI_AT:-}
+    secrets:
+      - source: google_adc
+        target: google-adc.json
+    read_only: false
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import json, sys, urllib.request;
+          response = json.load(urllib.request.urlopen("http://127.0.0.1:8000/health", timeout=5));
+          sys.exit(0 if response.get("status") == "ok" and response.get("database", {}).get("backend") == "postgres" and response.get("demo_mode") is False else 1)
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+
+secrets:
+  google_adc:
+    environment: GOOGLE_APPLICATION_CREDENTIALS_JSON
+
+volumes:
+  postgres_data:

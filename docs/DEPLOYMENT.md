@@ -58,9 +58,11 @@ The initial source revision on both branches was
 
 ## 3. Repository and build contract
 
-This repository is the intended monorepo root. At this baseline it contains
-only a root-level static landing page, not an `apps/*` workspace or a backend.
-Inspect future additions rather than assuming package-manager/workspace layout.
+This repository is the intended monorepo root, not an `apps/*` workspace.
+The deployed Compose baseline below is the root-level static landing page.
+The current checkout also contains a Python backend under `backend/`; its
+presence does not mean it has been deployed. See section 12 for the complete
+dev-only stack and its auto-deployment configuration.
 
 - `package.json` / `package-lock.json`: npm dependency source of truth.
 - `src/`: React application; Vite builds to `dist/`.
@@ -68,7 +70,7 @@ Inspect future additions rather than assuming package-manager/workspace layout.
 - `nginx.conf`: internal HTTP port 80, SPA fallback, immutable hashed assets.
 - `docker-compose.yml`: `web`, `build: .`, restart policy, internal port 80.
 - Image health check: HTTP GET `/` inside the container every 30 seconds.
-- No application database, persistent app volume, or required app secret is
+- For the frontend-only baseline, no application database, persistent app volume, or required app secret is
   declared by the current Compose file. Dokploy itself does have persistent state.
 
 Local validation after relevant code changes:
@@ -190,7 +192,8 @@ summarize or redact instead of pasting them into chat or committing captures.
    deployment before promoting the tested change to `main` through the team's
    approved merge workflow. Never merge or push automatically without a request.
 4. GitHub push hooks trigger the matching Compose deployment. Both resources
-   use GitHub source, `./docker-compose.yml`, `autoDeploy: true`, trigger `push`.
+   use GitHub source, `autoDeploy: true`, trigger `push`. Production keeps
+   `./docker-compose.yml`; dev uses `./docker-compose.dev.yml` for web + backend + database.
    Confirm live watch paths include every changed app/shared dependency.
 5. If the user requests a redeploy without a source change, resolve the Compose
    ID and submit the installed `compose.deploy` operation. Record submission
@@ -436,3 +439,127 @@ Name failed or skipped checks; do not report queued work as deployed.
 After authorized infrastructure changes, update this inventory and `AGENTS.md`
 when their invariants change. Keep credentials and token-bearing URLs out of
 both documents. Do not create commits or publish documentation without a request.
+
+## 12. Backend dev auto-deployment (configured, not deployed)
+
+On November 21, 2026, after the member requested deployment on their next dev
+push, the existing `web` Compose in `abelink` / `dev` was configured through the
+installed v0.31.4 API, without submitting a deployment:
+
+- Compose ID: `XXp-RthZqER8mcRUd5_HS` (rediscover before another write).
+- Repository/branch remain `Flydexo/abelink`, `dev`.
+- Compose path: `./docker-compose.dev.yml`, extending the root frontend service
+  and the backend service in `docker-compose.backend.dev.yml`.
+- `autoDeploy=true`, trigger `push`, existing watch paths `["**"]` preserved.
+- `createEnvFile=true`, so the dev Compose environment is available to Compose.
+- The existing `/` domain remains attached to `web:80`.
+- Backend domains were saved on `dev.abelink.app` for `/api`, `/health`, `/mcp`,
+  and `/openapi.json`, attached to `backend:8000`, with `https=false`,
+  `certificateType=none`, `stripPath=false`. These reach containers only after
+  deployment applies their routing labels.
+- Separate random `AUTH_SECRET` and `LINKCS_IMPORT_TOKEN` were generated
+  privately and saved in dev only. `GOOGLE_CLOUD_LOCATION=global` and
+  `PREFER_FREE_SEARCH=true` were saved. Never reproduce secret values here.
+- The member still must provide `GOOGLE_CLOUD_PROJECT`,
+  `GEMMA_MODEL`, `EMBEDDING_MODEL`, and `GOOGLE_APPLICATION_CREDENTIALS_JSON`.
+  Merge them into this exact dev Compose's `env` before the next dev push;
+  do not overwrite the generated secrets or unrelated variables.
+
+No new Compose resource, database, persistent volume, DNS record, or shared
+proxy configuration was created. Production retains its original source path,
+branch, trigger and domain; it was not modified. No Git commit, push, image
+build, container start, or deployment was submitted by the configuration work.
+The member's next push can trigger a deployment; it will fail if source files
+or required private inputs are missing. Configuration is not proof of runtime
+health or a working authenticated application.
+
+### Compose-managed dev database
+
+The member subsequently requested that Compose deploy the database too. The
+dev manifests now include `database` (PostgreSQL 16 with pgvector) and the
+project-scoped named volume `postgres_data`. No database port is published.
+The backend waits for database health, builds its internal `DATABASE_URL`
+from `POSTGRES_PASSWORD`, and applies the existing migrations. An external
+database URL is no longer a required input. The earlier no-database statement
+above describes the initial configuration work, not this prepared stack.
+
+Generate the dev database password privately as 32 random bytes encoded as hex
+only if it is missing, and save it in the existing dev Compose's environment.
+On November 21, 2026, `POSTGRES_PASSWORD` was generated privately and saved in
+that dev Compose, preserving all other keys. Readback confirmed the stable
+Compose project identity, `isolatedDeployment=false`, and
+`isolatedDeploymentsVolume=false`; production configuration was unchanged.
+Never rotate it implicitly: PostgreSQL initializes its SQL password only on an
+empty volume. Preserve the Compose project identity and the data volume; do not
+use `down -v`. Backup, restore, password rotation and major-version upgrades
+require separate authorized procedures. No database container or volume is
+created until an actual deployment; production remains unchanged.
+
+The dev backend requires a dedicated PostgreSQL with pgvector and pgcrypto,
+fixes embeddings at 768, and disables demo authentication. It exposes no host
+ports. `/app/import-linkcs` provides a protected JSON upload to seed the
+database with the dedicated `LINKCS_IMPORT_TOKEN`; this does not create a
+student login or bypass authorization requirements.
+
+See `backend/deploy/README.md` for secret handling, validation and the remaining
+authentication/data/ranking blockers. `backend/deploy/dev.env.example` is a
+public key-name template only, never the storage location for real credentials.
+
+### Environment-backed secret startup failure
+
+The member's subsequent dev deployment log shows both images built and
+PostgreSQL healthy, but backend startup failed with `cannot create secret`
+in a `read-only service` because `file` is the sole supported option there.
+This is not evidence of invalid Google credentials or a database failure.
+
+The dev backend manifest now explicitly sets `read_only: false` so Compose can
+copy the environment-backed Google secret into the container before startup.
+The non-root user, dropped capabilities, no-new-privileges and temporary-file
+limits remain. No secret source, database volume, password, production service,
+or Dokploy setting needs changing for this fix. A configuration-only check
+does not test secret injection; the corrected source must be published and the
+next intended deployment checked before claiming a successful backend start.
+
+### Reserved identifier in the initial migration
+
+The member's November 21, 2026 startup log subsequently showed a PostgreSQL
+syntax error on `current_role` in `001_init.sql`. This is a reserved SQL value,
+so the column identifier must be double-quoted both in its declaration and in
+the generated search-vector expression. Raw search SQL now quotes it too;
+SQLAlchemy's PostgreSQL dialect already quotes the ORM attribute correctly.
+The column name stays the same: no schema rename, data reset, password change
+or volume removal is required. The existing transactional startup migration
+runner will retry the corrected idempotent SQL on the next deployment.
+
+`backend/tests/test_sql_migrations.py` checks migration syntax using PostgreSQL's
+parser through the dev-only `pglast` dependency, verifies that the search vector
+reads the profile column rather than the database session role, and checks ORM
+quoting. These checks do not connect to or migrate the deployed database.
+
+### Explicitly requested public dev access
+
+The member subsequently requested that everyone can chat, upload LinkCS JSON
+and use MCP without authentication. The dev manifest now fixes
+`ALLOW_PUBLIC_ACCESS=true`, while keeping `DEMO_MODE=false` and
+`ALLOW_DEMO_AUTH=false`. The backend default remains protected
+(`allow_public_access=False`) outside this manifest; production is unchanged.
+
+Startup creates one shared `Visiteur public` profile if missing, without real
+personal details, mock alumni or provider calls. It supports chat on an empty
+database. `X-Profile-Id` on REST and `user_email_or_id` on MCP select context,
+not a verified identity. There is no per-visitor data isolation. Anonymous
+requests can inspect profiles, import shared data and spend provider credits.
+The member was warned of these consequences; no anonymous quota was added.
+
+Public LinkCS list imports omit `X-LinkCS-Import-Token` but keep confirmation,
+JSON validation, size/relationship limits and additive transactions. The same
+page supports Abelink v1 database bundles up to 1 GiB, using 4 MiB requests and
+temporary disk storage rather than the backend's `/tmp` tmpfs. Preserve the
+existing import key in Dokploy: bundles require it even in public dev. See
+`backend/deploy/README.md` for limits and storage. Token management routes are omitted publicly.
+The frontend hides the key/token forms and provides a token-free MCP config.
+`/health` reports `public_access` for frontend behavior and verification.
+
+These are source changes, not a live setting change or deployment. A dev push
+must publish them before the public mode takes effect. Do not rotate secrets,
+delete database data, push or deploy merely to validate this change.

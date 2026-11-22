@@ -404,6 +404,10 @@ a:focus-visible, summary:focus-visible, textarea:focus-visible, .chat-send:focus
 .app-field-row { display: grid; grid-template-columns: 1fr 130px; gap: .75rem; }
 
 .app-import-result { padding-top: 1.25rem; border-top: 1px solid var(--line); display: grid; gap: 1rem; }
+.app-linkcs-format { margin-top: 1rem; }
+.app-linkcs-format summary { cursor: pointer; font-weight: 600; }
+.app-form-fields .app-import-consent { display: flex; align-items: flex-start; gap: .65rem; font-weight: 400; }
+.app-import-consent input { width: auto; flex: none; margin-top: .2rem; }
 .app-stat-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: .75rem; }
 .app-stat { background: var(--bg); border: 1px solid var(--line); border-radius: 14px; padding: .8rem; display: grid; gap: .2rem; font-variant-numeric: tabular-nums; }
 .app-stat strong { font-size: 1.35rem; color: var(--accent); }

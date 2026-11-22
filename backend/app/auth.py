@@ -9,13 +9,14 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 import jwt
-from fastapi import Depends, Header, HTTPException, Request, status
+from fastapi import Header, HTTPException, Request, status
 
-from app.config import Settings, get_settings
+from app.config import Settings
 from app.db.repository import AbstractAlumniRepository
 
 # Propagates HTTP Authorization Bearer token into FastMCP tool calls
 mcp_bearer_token_ctx: ContextVar[Optional[str]] = ContextVar("mcp_bearer_token_ctx", default=None)
+PUBLIC_VISITOR_ID = "00000000-0000-4000-8000-000000000001"
 
 
 def hash_api_token(raw_token: str) -> str:
@@ -75,6 +76,13 @@ async def resolve_student_id_for_mcp(
     repository: AbstractAlumniRepository,
     settings: Settings,
 ) -> str:
+    if settings.allow_public_access:
+        if user_email_or_id:
+            profile = await repository.get_profile_by_email_or_id(user_email_or_id)
+            if profile is None:
+                raise ValueError(f"Profil de contexte introuvable: {user_email_or_id}")
+            return profile.id
+        return PUBLIC_VISITOR_ID
     bearer = mcp_bearer_token_ctx.get()
     if bearer:
         resolved = await resolve_student_id_from_bearer(bearer, repository, settings)
@@ -108,10 +116,20 @@ async def get_current_student_id(
     request: Request,
     authorization: Optional[str] = Header(default=None),
     x_demo_user_id: Optional[str] = Header(default=None, alias="X-Demo-User-Id"),
-    settings: Settings = Depends(get_settings),
+    x_profile_id: Optional[str] = Header(default=None, alias="X-Profile-Id"),
 ) -> str:
     container = request.app.state.container
     repository: AbstractAlumniRepository = container.repository
+    settings = container.settings
+
+    if settings.allow_public_access:
+        selected_id = x_profile_id or x_demo_user_id
+        if selected_id:
+            profile = await repository.get_profile_by_email_or_id(selected_id)
+            if profile is None:
+                raise HTTPException(404, "Profil de contexte introuvable.")
+            return profile.id
+        return PUBLIC_VISITOR_ID
 
     if authorization:
         scheme, _, creds = authorization.partition(" ")

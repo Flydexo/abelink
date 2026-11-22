@@ -1,8 +1,11 @@
+import { readSseStream } from './sse.js'
+
 const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
 
 function buildHeaders(userId, extra = {}) {
   const headers = { ...extra }
   if (userId) {
+    headers['X-Profile-Id'] = userId
     headers['X-Demo-User-Id'] = userId
   }
   return headers
@@ -66,51 +69,6 @@ export async function fetchGraphPath(targetId, userId = null, maxHops = 4, kPath
   return res.json()
 }
 
-async function readSseStream(res, onEvent) {
-  if (!res.body) throw new Error('Flux SSE indisponible sur ce navigateur.')
-
-  const reader = res.body.getReader()
-  const decoder = new TextDecoder('utf-8')
-  let buffer = ''
-  let finalResponse = null
-
-  const dispatchFrame = (rawFrame) => {
-    const lines = rawFrame.split(/\r?\n/)
-    let eventName = 'message'
-    const dataLines = []
-    for (const line of lines) {
-      if (line.startsWith('event:')) {
-        eventName = line.slice(6).trim()
-      } else if (line.startsWith('data:')) {
-        dataLines.push(line.slice(5).trim())
-      }
-    }
-    if (!dataLines.length) return
-    const parsed = JSON.parse(dataLines.join('\n'))
-    onEvent?.(eventName, parsed)
-    if (eventName === 'final_result') {
-      if (parsed?.data?.response) {
-        finalResponse = parsed.data.response
-      } else if (parsed?.response) {
-        finalResponse = parsed.response
-      }
-    }
-  }
-
-  while (true) {
-    const { value, done } = await reader.read()
-    if (done) break
-    buffer += decoder.decode(value, { stream: true })
-    const frames = buffer.split(/\r?\n\r?\n/)
-    buffer = frames.pop() || ''
-    for (const frame of frames) {
-      if (frame.trim()) dispatchFrame(frame)
-    }
-  }
-  if (buffer.trim()) dispatchFrame(buffer)
-  return finalResponse
-}
-
 export async function streamActionPlan(payload, userId, onEvent, signal) {
   const res = await fetch(`${API_BASE}/api/v1/search/action-plan/stream`, {
     method: 'POST',
@@ -161,6 +119,53 @@ export async function importLinkedInArchive(formData, userId = null) {
   })
   if (!res.ok) await parseError(res)
   return res.json()
+}
+
+export async function importLinkCSDump(file, importToken) {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('confirmed', 'true')
+  const res = await fetch(`${API_BASE}/api/v1/linkcs/import`, {
+    method: 'POST',
+    headers: importToken ? { 'X-LinkCS-Import-Token': importToken } : {},
+    body: formData,
+  })
+  if (!res.ok) await parseError(res)
+  return res.json()
+}
+
+export async function importAbelinkBundle(file, importToken, onProgress) {
+  const endpoint = `${API_BASE}/api/v1/linkcs/bundle`
+  const headers = { 'X-LinkCS-Import-Token': importToken }
+  async function send(url, options) {
+    const response = await fetch(url, { ...options, headers: { ...headers, ...options?.headers } })
+    if (!response.ok) await parseError(response)
+    return response.status === 204 ? null : response.json()
+  }
+
+  const { id, chunk_size: chunkSize } = await send(`${endpoint}?size=${file.size}&confirmed=true`, { method: 'POST' })
+  const upload = `${endpoint}/${id}`
+  try {
+    for (let offset = 0; offset < file.size;) {
+      const chunk = file.slice(offset, offset + chunkSize)
+      const { received } = await send(`${upload}?offset=${offset}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/octet-stream' }, body: chunk,
+      })
+      offset = received
+      onProgress(offset)
+    }
+    await send(`${upload}/finish`, { method: 'POST' })
+  } catch (error) {
+    await send(upload, { method: 'DELETE' }).catch(() => {})
+    throw error
+  }
+
+  for (;;) {
+    const result = await send(upload)
+    if (result.state === 'completed') return { ...result.summary, warning: result.warning }
+    if (result.state === 'failed') throw new Error(result.detail)
+    await new Promise((resolve) => setTimeout(resolve, 2000))
+  }
 }
 
 export async function listApiTokens(userId = null) {

@@ -34,6 +34,7 @@ async def health(request: Request) -> dict:
         "database": db_status,
         "graph": graph_stats,
         "demo_mode": container.settings.demo_mode,
+        "public_access": container.settings.allow_public_access,
         "llm_backend": "vertex" if isinstance(container.llm_service, VertexLLMService) else "deterministic",
         "tavily_enabled": container.enrichment_service.is_web_enabled(),
         "search_provider": _resolve_search_provider(container.enrichment_service.web_client),

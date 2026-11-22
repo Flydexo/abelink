@@ -95,7 +95,25 @@ def load_linkcs_dataset(
     if not path.exists():
         raise FileNotFoundError(f"Fichier LinkCS introuvable: {path}")
 
-    rows = _read_linkcs_rows(path)
+    return load_linkcs_rows(
+        _read_linkcs_rows(path),
+        include_demo_student=include_demo_student,
+        compute_embeddings=compute_embeddings,
+        embedding_dim=embedding_dim,
+        max_group_size=max_group_size,
+    )
+
+
+def load_linkcs_rows(
+    rows: list[dict[str, Any]],
+    *,
+    include_demo_student: bool = False,
+    compute_embeddings: bool = False,
+    embedding_dim: int = 768,
+    max_group_size: int = 80,
+    max_edges: Optional[int] = None,
+) -> tuple[list[ProfileRecord], list[EdgeRecord]]:
+    """Convert parsed LinkCS rows without requiring an uploaded file on disk."""
     profiles: list[ProfileRecord] = []
     seen_ids: set[str] = set()
     seen_linkedin: set[str] = set()
@@ -127,16 +145,22 @@ def load_linkcs_dataset(
         email = email_etud or (all_emails[0] if all_emails else (perso_emails[0] if perso_emails else None))
 
         linkedin_url: Optional[str] = None
+        duplicate_linkedin = False
         socials = row.get("reseaux_sociaux")
         if isinstance(socials, list):
             for entry in socials:
                 s = str(entry)
                 if "linkedin.com" in s.lower():
                     candidate_url = normalize_linkedin_url(s)
-                    if candidate_url and candidate_url not in seen_linkedin:
-                        linkedin_url = candidate_url
-                        seen_linkedin.add(candidate_url)
+                    if candidate_url:
+                        if candidate_url in seen_linkedin:
+                            duplicate_linkedin = True
+                        else:
+                            linkedin_url = candidate_url
+                            seen_linkedin.add(candidate_url)
                     break
+        if duplicate_linkedin:
+            continue
 
         raw_official = _split_semicolon_field(row.get("associations"))
         raw_clubs = _split_semicolon_field(row.get("clubs_et_groupes"))
@@ -206,6 +230,8 @@ def load_linkcs_dataset(
                     key = (src, dst, "INFERRED_ASSO")
                     existing = edges_map.get(key)
                     if existing is None or prob > existing.probability:
+                        if existing is None and max_edges is not None and len(edges_map) >= max_edges:
+                            raise ValueError("Le dump génère trop de relations ; importez un extrait plus petit.")
                         edges_map[key] = EdgeRecord(
                             source_id=src,
                             target_id=dst,

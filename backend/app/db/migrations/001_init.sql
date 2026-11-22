@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS profiles (
     linkedin_url TEXT UNIQUE,
     photo_url TEXT,
     promo_year INT,
-    current_role TEXT,
+    "current_role" TEXT,
     current_company TEXT,
     sector TEXT,
     location TEXT,
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS profiles (
         to_tsvector(
             'french',
             coalesce(full_name, '') || ' ' ||
-            coalesce(current_role, '') || ' ' ||
+            coalesce("current_role", '') || ' ' ||
             coalesce(current_company, '') || ' ' ||
             coalesce(sector, '') || ' ' ||
             coalesce(bio, '')

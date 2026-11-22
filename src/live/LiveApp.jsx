@@ -4,11 +4,12 @@ import { track } from '../analytics.js'
 import ChatView from './ChatView.jsx'
 import IntegrationsTab from './IntegrationsTab.jsx'
 import LinkedInTab from './LinkedInTab.jsx'
+import LinkCSTab from './LinkCSTab.jsx'
 import ProfileAvatar from './ProfileAvatar.jsx'
 import ProfileDrawer from './ProfileDrawer.jsx'
 
-export default function LiveApp({ onNavigateHome }) {
-  const [tab, setTab] = useState('chat') // chat | linkedin | integrations
+export default function LiveApp({ onNavigateHome, onNavigate, pathname = '/app' }) {
+  const [tab, setTab] = useState(pathname === '/app/import-linkcs' ? 'linkcs' : 'chat')
   const [health, setHealth] = useState(null)
   const [backendError, setBackendError] = useState('')
 
@@ -21,6 +22,15 @@ export default function LiveApp({ onNavigateHome }) {
   const [drawerProfileId, setDrawerProfileId] = useState(null)
 
   const switcherRef = useRef(null)
+
+  useEffect(() => {
+    setTab((current) => pathname === '/app/import-linkcs' ? 'linkcs' : current === 'linkcs' ? 'chat' : current)
+  }, [pathname])
+
+  function selectTab(nextTab) {
+    setTab(nextTab)
+    onNavigate?.(nextTab === 'linkcs' ? '/app/import-linkcs' : '/app')
+  }
 
   const loadHealthAndMe = useCallback(async (userIdOverride = activeUserId) => {
     try {
@@ -105,21 +115,28 @@ export default function LiveApp({ onNavigateHome }) {
             <button
               type="button"
               className={`app-tab${tab === 'chat' ? ' active' : ''}`}
-              onClick={() => setTab('chat')}
+              onClick={() => selectTab('chat')}
             >
               Chat
             </button>
             <button
               type="button"
               className={`app-tab${tab === 'linkedin' ? ' active' : ''}`}
-              onClick={() => setTab('linkedin')}
+              onClick={() => selectTab('linkedin')}
             >
               Import LinkedIn
             </button>
             <button
               type="button"
+              className={`app-tab${tab === 'linkcs' ? ' active' : ''}`}
+              onClick={() => selectTab('linkcs')}
+            >
+              Import de données
+            </button>
+            <button
+              type="button"
               className={`app-tab${tab === 'integrations' ? ' active' : ''}`}
-              onClick={() => setTab('integrations')}
+              onClick={() => selectTab('integrations')}
             >
               Claude &amp; ChatGPT
             </button>
@@ -182,12 +199,17 @@ export default function LiveApp({ onNavigateHome }) {
       </header>
 
       <main className={`app-main${tab === 'chat' ? ' app-main-chat' : ''}`}>
+        {health?.public_access && (
+          <p className="muted small" role="status">
+            Accès public sans connexion : données et profil visiteur partagés. Le profil sélectionné sert de contexte, pas d’identité privée.
+          </p>
+        )}
         {backendError && (
           <div className="app-offline-banner" role="alert">
             <div>
-              <strong>Backend FastAPI non détecté ({backendError})</strong>
+              <strong>Connexion à l’espace de travail indisponible ({backendError})</strong>
               <p className="muted small">
-                Démarrez le serveur backend avec votre base LinkCS dans un terminal :
+                Vérifiez le backend et votre authentification. Pour une démo locale uniquement :
                 <code className="app-code-block">
                   cd backend &amp;&amp; DEMO_MODE=true .venv/bin/uvicorn app.main:app --reload --port 8000
                 </code>
@@ -214,7 +236,8 @@ export default function LiveApp({ onNavigateHome }) {
           />
         )}
 
-        {tab === 'integrations' && <IntegrationsTab activeUser={activeUser} />}
+        {tab === 'integrations' && <IntegrationsTab activeUser={activeUser} publicAccess={health?.public_access === true} />}
+        {tab === 'linkcs' && <LinkCSTab publicAccess={health?.public_access === true} onImported={() => loadHealthAndMe(activeUserId)} />}
       </main>
 
       <ProfileDrawer

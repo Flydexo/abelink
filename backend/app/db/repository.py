@@ -5,12 +5,15 @@ from __future__ import annotations
 import math
 import unicodedata
 import uuid
-from dataclasses import dataclass, field
+from collections.abc import AsyncIterator, Iterator
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
+from itertools import islice
 from typing import Any, Optional, Protocol
 
 import numpy as np
-from sqlalchemy import delete, select, text, update
+from anyio import to_thread
+from sqlalchemy import delete, or_, select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
@@ -188,6 +191,10 @@ class AbstractAlumniRepository(Protocol):
     async def list_edges(self) -> list[EdgeRecord]: ...
 
     async def upsert_edges(self, edges: list[EdgeRecord]) -> int: ...
+
+    async def import_linkcs_records(
+        self, profiles: list[ProfileRecord], edges: list[EdgeRecord]
+    ) -> tuple[int, int]: ...
 
     async def hybrid_search_alumni(
         self,
@@ -400,6 +407,25 @@ class InMemoryAlumniRepository:
             profile.id = str(uuid.uuid4())
         self.profiles[profile.id] = profile
         return profile
+
+    async def import_linkcs_records(
+        self, profiles: list[ProfileRecord], edges: list[EdgeRecord]
+    ) -> tuple[int, int]:
+        known_urls = {profile.linkedin_url for profile in self.profiles.values() if profile.linkedin_url}
+        additions = [profile for profile in profiles if profile.id not in self.profiles]
+        if any(profile.linkedin_url in known_urls for profile in additions if profile.linkedin_url):
+            raise ValueError("Un profil existe déjà avec cette URL LinkedIn ; réessayez l’import.")
+        valid_ids = set(self.profiles) | {profile.id for profile in additions}
+        if any(edge.source_id not in valid_ids or edge.target_id not in valid_ids for edge in edges):
+            raise ValueError("Une relation référence un profil inconnu.")
+        new_edges = {
+            (edge.source_id, edge.target_id, edge.edge_type): edge
+            for edge in edges
+            if (edge.source_id, edge.target_id, edge.edge_type) not in self.edges
+        }
+        self.profiles.update({profile.id: profile for profile in additions})
+        self.edges.update(new_edges)
+        return len(additions), len(new_edges)
 
     async def update_enrichment(
         self,
@@ -635,6 +661,126 @@ class PostgresAlumniRepository:
     def __init__(self, engine: AsyncEngine, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self.engine = engine
         self.session_factory = session_factory
+
+    async def import_bundle_records(self, records: Iterator[ProfileRecord | EdgeRecord]) -> tuple[int, int, int]:
+        """Insert the ordered bundle in one transaction without replacing stored rows."""
+        profiles_seen = profiles_added = edges_added = 0
+        profile_insert = pg_insert(ProfileORM).on_conflict_do_nothing().returning(ProfileORM.id)
+        remapped_ids: dict[uuid.UUID, uuid.UUID] = {}
+        edge_insert = pg_insert(EdgeORM).on_conflict_do_nothing(
+            index_elements=[EdgeORM.source_id, EdgeORM.target_id, EdgeORM.edge_type]
+        )
+        async with self.session_factory() as session, session.begin():
+            while batch := await to_thread.run_sync(lambda: list(islice(records, 32))):
+                profiles, edges = [], []
+                for record in batch:
+                    if isinstance(record, ProfileRecord):
+                        row = vars(record).copy()
+                        row.pop("embedding_space")
+                        row["id"] = uuid.UUID(record.id)
+                        profiles.append(row)
+                    else:
+                        row = asdict(record)
+                        row["id"] = uuid.UUID(record.id) if record.id else uuid.uuid4()
+                        edges.append(row)
+                if profiles:
+                    profiles_seen += len(profiles)
+                    result = await session.execute(profile_insert, profiles)
+                    inserted_ids = set(result.scalars().all())
+                    profiles_added += len(inserted_ids)
+                    skipped = [row for row in profiles if row["id"] not in inserted_ids]
+                    if skipped:
+                        matches = await session.execute(select(ProfileORM.id, ProfileORM.linkedin_url).where(or_(
+                            ProfileORM.id.in_({row["id"] for row in skipped}),
+                            ProfileORM.linkedin_url.in_({row["linkedin_url"] for row in skipped if row["linkedin_url"] is not None}),
+                        )))
+                        existing_ids = set(inserted_ids)
+                        ids_by_url = {}
+                        for existing_id, url in matches:
+                            existing_ids.add(existing_id)
+                            if url is not None:
+                                ids_by_url[url] = existing_id
+                        for row in skipped:
+                            imported_id = row["id"]
+                            if imported_id not in existing_ids:
+                                matched_id = ids_by_url.get(row["linkedin_url"])
+                                if matched_id is None:
+                                    raise ValueError("Le profil existant n’a pas pu être retrouvé.")
+                                remapped_ids[imported_id] = matched_id
+                if edges:
+                    mapped_edges = []
+                    for row in edges:
+                        source_id = uuid.UUID(row["source_id"])
+                        target_id = uuid.UUID(row["target_id"])
+                        row["source_id"] = remapped_ids.get(source_id, source_id)
+                        row["target_id"] = remapped_ids.get(target_id, target_id)
+                        if row["source_id"] != row["target_id"]:
+                            mapped_edges.append(row)
+                    if mapped_edges:
+                        result = await session.execute(edge_insert.returning(EdgeORM.id), mapped_edges)
+                        edges_added += len(result.scalars().all())
+        return profiles_seen, profiles_added, edges_added
+
+    async def iter_graph_records(self) -> AsyncIterator[ProfileRecord | EdgeRecord]:
+        """Read just the fields the graph uses, with a server-side cursor."""
+        async with self.session_factory() as session:
+            nodes = await session.stream(select(
+                ProfileORM.id, ProfileORM.full_name, ProfileORM.promo_year, ProfileORM.current_role,
+                ProfileORM.current_company, ProfileORM.sector, ProfileORM.photo_url, ProfileORM.is_student,
+            ).execution_options(yield_per=1000))
+            async for row in nodes.mappings():
+                yield ProfileRecord(**{**row, "id": str(row["id"])})
+            edges = await session.stream(select(
+                EdgeORM.source_id, EdgeORM.target_id, EdgeORM.edge_type, EdgeORM.probability, EdgeORM.reason,
+            ).execution_options(yield_per=1000))
+            async for row in edges.mappings():
+                yield EdgeRecord(**{**row, "source_id": str(row["source_id"]), "target_id": str(row["target_id"])})
+
+    async def import_linkcs_records(
+        self, profiles: list[ProfileRecord], edges: list[EdgeRecord]
+    ) -> tuple[int, int]:
+        """Insert a dump atomically, preserving every existing profile and relation."""
+        profiles_added = 0
+        edges_added = 0
+        async with self.session_factory() as session, session.begin():
+            for start in range(0, len(profiles), 100):
+                batch = profiles[start : start + 100]
+                values = [
+                    {
+                        "id": uuid.UUID(profile.id),
+                        "full_name": profile.full_name,
+                        "email": profile.email,
+                        "linkedin_url": profile.linkedin_url,
+                        "promo_year": profile.promo_year,
+                        "bio": profile.bio,
+                        "education": profile.education,
+                        "associations": profile.associations,
+                        "passions": profile.passions,
+                        "is_student": False,
+                        "has_imported_linkedin": False,
+                        "enrichment_source": "LINKCS_DB",
+                    }
+                    for profile in batch
+                ]
+                statement = pg_insert(ProfileORM).on_conflict_do_nothing().returning(ProfileORM.id)
+                result = await session.execute(statement, values)
+                profiles_added += len(result.scalars().all())
+            for start in range(0, len(edges), 500):
+                batch = edges[start : start + 500]
+                values = [
+                    {
+                        "source_id": uuid.UUID(edge.source_id),
+                        "target_id": uuid.UUID(edge.target_id),
+                        "edge_type": edge.edge_type,
+                        "probability": edge.probability,
+                        "reason": edge.reason,
+                    }
+                    for edge in batch
+                ]
+                statement = pg_insert(EdgeORM).on_conflict_do_nothing().returning(EdgeORM.id)
+                result = await session.execute(statement, values)
+                edges_added += len(result.scalars().all())
+        return profiles_added, edges_added
 
     async def get_profile(self, profile_id: str) -> Optional[ProfileRecord]:
         try:
@@ -955,7 +1101,7 @@ class PostgresAlumniRepository:
                         ELSE 0.0
                     END
                     + CASE
-                        WHEN :has_role AND COALESCE(p.current_role, '') ILIKE :role_pattern THEN 0.20
+                        WHEN :has_role AND COALESCE(p."current_role", '') ILIKE :role_pattern THEN 0.20
                         ELSE 0.0
                     END
                     + CASE
@@ -968,9 +1114,9 @@ class PostgresAlumniRepository:
                 ) AS hybrid_score
             FROM profiles p
             WHERE p.is_student = FALSE
-              AND (:exclude_id IS NULL OR p.id::text <> :exclude_id)
-              AND (:promo_min IS NULL OR p.promo_year >= :promo_min)
-              AND (:promo_max IS NULL OR p.promo_year <= :promo_max)
+              AND (CAST(:exclude_id AS text) IS NULL OR p.id::text <> CAST(:exclude_id AS text))
+              AND (CAST(:promo_min AS integer) IS NULL OR p.promo_year >= CAST(:promo_min AS integer))
+              AND (CAST(:promo_max AS integer) IS NULL OR p.promo_year <= CAST(:promo_max AS integer))
             ORDER BY hybrid_score DESC
             LIMIT :limit
             """
